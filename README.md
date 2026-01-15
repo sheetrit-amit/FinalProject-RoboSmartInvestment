@@ -1,45 +1,235 @@
-# FinTech-RoboAdvisor-FinalProject
+# 🤖 RoboSmartInvestment
 
-## 🤖 AI-Powered Robo Advisor for Investment Portfolio Management
+**AI-Powered Smart Stock Portfolio Builder**
 
-[cite_start]This repository contains the source code and documentation for a final engineering project focused on developing an innovative **Robo Advisor system** based on **Artificial Intelligence (AI) and Machine Learning**[cite: 8].
-
----
-
-## 🎯 Project Overview & Goals
-
-[cite_start]The project aims to create a highly personalized and efficient investment management tool by addressing key market challenges[cite: 31, 32].
-
-### Super Goal
-[cite_start]The main objective is to enable **optimization of investment portfolios**, improve **risk management**, and implement **personalization** of investment strategies for every client[cite: 9].
-
-### Core Problem Solved
-The system provides a sophisticated solution to common challenges faced by investors:
-* [cite_start]**Complexity and Information Overload:** Filtering and analyzing the vast amounts of financial data, market news, and economic reports[cite: 31].
-* [cite_start]**Lack of Accessibility:** Providing high-quality, customized financial advice that is typically reserved for high-net-worth individuals[cite: 32].
-* [cite_start]**Simplistic Existing Solutions:** Moving beyond "one-size-fits-all" robotic solutions that fail to properly balance personal nuances like required liquidity, ESG preferences, or specific long vs. short-term goals[cite: 34].
+An intelligent investment system that combines machine learning, modern portfolio theory, and LLM-based analysis to create personalized stock portfolios tailored to individual risk preferences.
 
 ---
 
-## ⚙️ Core Technology & Approach
+## 🎯 Project Overview
 
-[cite_start]The system employs a holistic approach combining quantitative finance with advanced AI techniques[cite: 37]:
+RoboSmartInvestment is an end-to-end automated system that helps investors build optimized stock portfolios by:
 
-### Key Components
-
-1.  [cite_start]**AI Agents / LLMs (Large Language Models):** Utilized to scan and interpret diverse data (textual and financial) to identify opportunities and risks[cite: 38, 40].
-2.  **Financial Optimization Models:** Core mathematical models used for portfolio construction. [cite_start]This includes **Markowitz Model** and **Linear Programming** to build optimal portfolios that balance risk and return[cite: 43, 45].
-3.  [cite_start]**Machine Learning:** Used for automatic classification and initial filtering of companies and assets based on the user's profile[cite: 39, 41].
-4.  [cite_start]**Data Processing Pipeline:** Essential for cleaning and standardizing raw market data to ensure model accuracy (addressing the "dirty data" challenge)[cite: 65].
-
-### User Input & Personalization
-[cite_start]The system begins with simple, focused user input via an intuitive interface[cite: 17, 18]:
-* [cite_start]**Defined Risk Level:** Low, Medium, or High[cite: 17].
-* [cite_start]**Preferred Sectors:** e.g., Technology, Energy, Health[cite: 17].
-* [cite_start]**Asset Allocation Preferences:** e.g., mix between Government Bonds (stability), Corporate Bonds (higher yield), and Stocks (growth)[cite: 17].
+1. **Understanding investor preferences** - Risk tolerance and investment amount
+2. **Classifying stocks by risk** - Using Decision Tree machine learning
+3. **Optimizing portfolio allocation** - Using Markowitz Modern Portfolio Theory
+4. **Analyzing fundamentals with AI** - LLM-powered quarterly report analysis
+5. **Generating personalized recommendations** - Final LLM synthesis with explanations
 
 ---
 
-## 💻 Repository Structure & Development Status
+## 🔄 System Architecture
 
-[cite_start]The repository is structured to maintain modularity and clear separation of concerns, supporting a robust development cycle (following Agile/Sprint methodology)[cite: 58].
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              USER INPUT                                      │
+│                    💰 Investment Amount + 📊 Risk Tolerance                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         RISK CLASSIFICATION                                  │
+│                    🌳 Decision Tree Classifier                               │
+│         Classifies 1000+ stocks into risk levels (Low/Medium/High)          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+                    ┌─────────────────────────────────────┐
+                    │   Stocks matching user's risk level │
+                    └─────────────────────────────────────┘
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    │                                   │
+                    ▼                                   ▼
+┌───────────────────────────────┐     ┌───────────────────────────────────────┐
+│     MARKOWITZ OPTIMIZATION    │     │         N8N + LLM ANALYSIS            │
+│   📈 Modern Portfolio Theory  │     │   📄 Quarterly Reports Processing     │
+│                               │     │                                       │
+│ • Expected returns            │     │ • Fetch latest quarterly reports      │
+│ • Risk (volatility)           │     │ • LLM analyzes financial health       │
+│ • Correlation matrix          │     │ • Generate fundamental score          │
+│ • Efficient frontier          │     │                                       │
+│ • Optimal weights             │     │                                       │
+└───────────────────────────────┘     └───────────────────────────────────────┘
+                    │                                   │
+                    └─────────────────┬─────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          FINAL LLM SYNTHESIS                                 │
+│                      🧠 Portfolio Construction AI                            │
+│                                                                              │
+│  Combines:                                                                   │
+│  • Markowitz optimal weights                                                 │
+│  • LLM fundamental scores                                                    │
+│  • User risk preferences                                                     │
+│                                                                              │
+│  Outputs:                                                                    │
+│  ✅ Final portfolio allocation                                               │
+│  ✅ Investment reasoning & interpretation                                    │
+│  ✅ Risk assessment & recommendations                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🛠️ Technology Stack
+
+| Component | Technology |
+|-----------|------------|
+| **Data Storage** | Google BigQuery |
+| **Data Source** | Yahoo Finance API |
+| **ML Classification** | Decision Tree (scikit-learn) |
+| **Portfolio Optimization** | Markowitz Model (Python) |
+| **Workflow Automation** | n8n |
+| **AI Analysis** | Large Language Models (LLM) |
+| **Language** | Python 3.10+ |
+
+---
+
+## 📁 Project Structure
+
+```
+FinalProject-RoboSmartInvestment/
+│
+├── data/
+│   ├── tickers_top1000.txt           # Main stock universe (1000 companies)
+│   ├── tickers_training_200.txt      # Training set for decision tree
+│   ├── ticker_sector_training.csv    # Sector classification
+│   └── raw/                          # Raw data files
+│
+├── src/
+│   └── data_retrieval/
+│       ├── yahoo_to_bigquery.py              # Daily prices → BigQuery
+│       ├── bulk_load_to_bigquery.py          # Bulk loading utility
+│       ├── financial_statements_to_bigquery.py # Financial statements
+│       ├── upload_training_data_to_bigquery.py # Training data upload
+│       ├── get_ticker_sectors.py             # Sector classification
+│       └── check_missing_tickers.py          # Data validation
+│
+├── notebooks/
+│   └── data_analysis_eda.ipynb       # Exploratory data analysis
+│
+├── docs/
+│   └── data_analysis.md              # Data analysis documentation
+│
+└── requirements.txt                  # Python dependencies
+```
+
+---
+
+## 📊 Data Pipeline
+
+### BigQuery Datasets
+
+**`StockData`** - Main dataset (1000 companies)
+| Table | Description |
+|-------|-------------|
+| `daily_prices` | OHLCV data (5 years) |
+| `income_statements` | Revenue, expenses, profits |
+| `balance_sheets` | Assets, liabilities, equity |
+| `cash_flows` | Operating, investing, financing |
+
+**`DecisionTreeTraining`** - Training dataset (200 companies)
+| Table | Description |
+|-------|-------------|
+| `daily_prices` | Training price data |
+| `income_statements` | Training income data |
+| `balance_sheets` | Training balance data |
+| `cash_flows` | Training cash flow data |
+| `ticker_sectors` | Sector classification |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+```bash
+# Python 3.10+
+python --version
+
+# Google Cloud SDK configured
+gcloud auth application-default login
+```
+
+### Installation
+
+```bash
+# Clone the repository
+git clone git@github.com:sheetrit-amit/FinalProject-RoboSmartInvestment.git
+cd FinalProject-RoboSmartInvestment
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Load Data to BigQuery
+
+```bash
+# 1. Load main stock universe (1000 companies)
+python src/data_retrieval/bulk_load_to_bigquery.py
+
+# 2. Load financial statements
+python src/data_retrieval/financial_statements_to_bigquery.py
+
+# 3. Load training data (200 companies)
+python src/data_retrieval/upload_training_data_to_bigquery.py
+
+# 4. Generate sector classifications
+python src/data_retrieval/get_ticker_sectors.py
+```
+
+---
+
+## 📈 Key Features
+
+### 1. Risk Classification (Decision Tree)
+- Trained on 200 diverse companies
+- Features: volatility, beta, financial ratios
+- Output: Low / Medium / High risk classification
+
+### 2. Markowitz Portfolio Optimization
+- Calculates expected returns and covariance
+- Generates efficient frontier
+- Finds optimal portfolio weights for target risk
+
+### 3. LLM Financial Analysis
+- Processes quarterly earnings reports
+- Analyzes management commentary
+- Generates fundamental health scores
+
+### 4. AI Portfolio Synthesis
+- Combines quantitative and qualitative analysis
+- Generates human-readable investment rationale
+- Provides actionable portfolio recommendations
+
+---
+
+## 🎓 Academic Context
+
+This project is developed as a final year project at Ben-Gurion University of the Negev (BGU), combining:
+- **Machine Learning** - Classification algorithms
+- **Financial Theory** - Modern Portfolio Theory
+- **Natural Language Processing** - LLM analysis
+- **Data Engineering** - BigQuery, ETL pipelines
+
+---
+
+## 📝 License
+
+This project is for academic purposes.
+
+---
+
+## 👤 Author
+
+**Amit Sheetrit**
+- GitHub: [@sheetrit-amit](https://github.com/sheetrit-amit)
+- University: Ben-Gurion University of the Negev
+
+---
+
+<p align="center">
+  <i>Building smarter investment decisions with AI 🚀</i>
+</p>
