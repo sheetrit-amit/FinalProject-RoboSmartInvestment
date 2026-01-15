@@ -56,3 +56,4 @@ def get_missing_tickers():
 if __name__ == '__main__':
     missing = get_missing_tickers()
 
+
