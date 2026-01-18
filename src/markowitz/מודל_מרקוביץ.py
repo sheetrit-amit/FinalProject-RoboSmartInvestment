@@ -15,20 +15,8 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 import json, os
 
-info = {
-  "type": "service_account",
-  "project_id": "pro-visitor-429015-f5",
-  "private_key_id": "950ceae330f3c4821a2df3243fd787df83d2dcaf",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLrrndMQpQcrm+\nW7MlNdzUNQWwUonNSoAyhZbR1YwUVS3vCyPqO7JIm1XCfJXc/LexgrTgFNOHkaHo\nmqAS5Imbyjz/vU/xJWxMuiPIjpCZuPL/ZTVkEaY3PGltVi37hJ1lWzWKI4s5YA4V\nuDg11RR6iLAjwSFPfozQmoQ5N41Gn5ptdG6T9HHkit+SumUC2pXiJBqKdYgxtOLx\nSbF/t/Ep2KKLcwYG7bcJCR2FpjgBw/2i8Ntc9z/ga/qcb8I3N+O5oI8j7dhnRuCC\nHSXrjMSsrs6OJRHyYRCaIvAFvbQtDaDfqHnDR52l+aCGn4kOiQGgOQhDMpU52WoY\n6HsW3VLDAgMBAAECggEAAcL8SDhP3Vvt/6z9staGl0PxeCcb761zcrxquQbj+XBh\nKij1Abt2x8pRfBH6yS4FuAsoMwCgcb2QjRlP8B86PMw2KdoX0mn0nVdGJEpuCr5U\nRQw5jCjblgJiQQ1WmXnPU1yYwnNF6tRKBZBnKrlck3tngUT+25f9x3dxVFNcLUkD\n0FlTQK3gE8Sh/KVPn06leq0r6dN7viK9osxknpOCdk/FxRCYS+K9eyJH+2BzXiF+\nVvymQPqUh0WJn+WEJefyZVKXXcTuiqKZGC6DZySkvYfDg9KE2vDKrcTaBcOvlGn8\nA1h6Iw1s78ekGCn0OAXwDaZUuEDxh0FqgclvNZ9ghQKBgQD1DvMYRn4p+EhA/brs\n48wh5CIej+MI0xc37GnZyWXY7pJZJMdHgNH1II8wfDlA0sURdOFnqSzXtVZY2ovz\nC+prHLDyvNNNWssOjzcv6LoVjJ6Ab2rw6AfuMt4Y7YauYZIDEQooSg9PiHeDN2m3\npZZYY2CFZwNZ3MLZyqjrRGiABwKBgQDUxtg6+hQCruTdr0ipv1b2ESJPiCFVKduR\nyQUjrO29YjwWlzUHGEUkWHAWl0S8NXTjFLLVf3nwGeSGsHA/Ijoj9f0TGCjHnMrT\nx5F3tZKuJLqMyF/yxDQfNu44mDvVzS9mG3m+dDlJ4e7dMMdL40T5XON8DCJiMHoa\n8LYxLfKwZQKBgCudTYa0hR/TIIjwn6QpptshTzFBSpb3etppKS2puoaxbzqOYSlI\ntBV8hf+LHGV9HbXNp5Bbe6+ohoWp396R8Fa/9H4/PRw3XIxq0NemA/hx3oPdUJsv\nsLmkNAMbwyymEOaa0cP56l+tWhfwdNBKmEeC6FrVyrLjp4o7l3TH6BFhAoGAG127\nv9IcMsAlxXFe6h4m5B0OCaabiuWITPbKx2zdYuc4jTtDYbc4ZVVOjUlFWOOTNgWa\nfqUXnM7nun8E4MnZKnjf5M3NqOa8m4JmbjwXMnic2bCHzqR3g7A/8V17DKOIPhy4\nistN9vetDhvQ9iyz2VKeG31ACtrrSX2+IRMkzJUCgYEA38BZOERTytgg3jdm1I2v\nHEFpZ1YVlyhZbaCRE+n7ZwUB4RwN0/tfRjo3Qmq1D60I2mToIjE+O9mtsBnq6QBO\nGXV0nSk/6DVdIXJxEqhnQnCKo1vf1aOT+epWtFjFJjKxjULBf+HLujI0ocqxJSY8\nRJH/7QUO+zNHHyWJK9YdWL4=\n-----END PRIVATE KEY-----\n",
-  "client_email": "project-api@pro-visitor-429015-f5.iam.gserviceaccount.com",
-  "client_id": "117559510697606969089",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/project-api%40pro-visitor-429015-f5.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
-}
 
+info={add json key}
 
 credentials = service_account.Credentials.from_service_account_info(info)
 
