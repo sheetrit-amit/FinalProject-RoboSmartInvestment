@@ -1,0 +1,423 @@
+{
+  "name": "Final project WF",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Desired company",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name of company",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "59e8057a-50d5-4096-b393-a1181dd7ff25",
+      "name": "On form submission",
+      "webhookId": "83110f08-8d97-4bee-9480-7fe0e8e93f9a"
+    },
+    {
+      "parameters": {
+        "url": "https://financialmodelingprep.com/stable/sec-filings-search/symbol",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "symbol",
+              "value": "={{ $json['Name of company'] }}"
+            },
+            {
+              "name": "apikey",
+              "value": "QgP2qtG9ii300ZYzYRXnefYelyOG3yvr"
+            },
+            {
+              "name": "from",
+              "value": "={{$now.setZone('Asia/Jerusalem').minus({ months: 6 }).toISODate()}}"
+            },
+            {
+              "name": "to",
+              "value": "={{$now.setZone('Asia/Jerusalem').toISODate()}}"
+            },
+            {
+              "name": "limitPerForm",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        160,
+        320
+      ],
+      "id": "0ae4ab27-c243-4d4d-a07d-bd19ed6d6619",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.finalLink}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "YourAppName contact@email.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        704,
+        320
+      ],
+      "id": "c9ce4796-1a9a-4718-b58a-3c2f5cbe45bd",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert financial analyst.  \nYour job is to analyze the following company financial data and the native-language 10-Q report text, then return a JSON with:\n\n- \"mark\": integer 0–100 assessing the company’s situation (how well it is doing, stability, risks)\n- \"explanation\": a concise explanation (max 2 short paragraphs) supporting the score\n\nScoring guide:\n0–20 = severe distress  \n21–40 = weak / deteriorating  \n41–60 = average / mixed  \n61–80 = good / stable  \n81–100 = excellent\n\nReturn ONLY valid JSON with exactly:\n{\"mark\": <0-100>, \"explanation\": \"<max 2 short paragraphs>\"}\n\nFinancial (merged item 0):\n{\n  \"date\": \"{{ $items('Merge')[0].json.date }}\",\n  \"symbol\": \"{{ $items('Merge')[0].json.symbol }}\",\n  \"reportedCurrency\": \"{{ $items('Merge')[0].json.reportedCurrency }}\",\n  \"fiscalYear\": \"{{ $items('Merge')[0].json.fiscalYear }}\",\n  \"period\": \"{{ $items('Merge')[0].json.period }}\",\n  \"revenue\": {{ $items('Merge')[0].json.revenue }},\n  \"grossProfit\": {{ $items('Merge')[0].json.grossProfit }},\n  \"operatingIncome\": {{ $items('Merge')[0].json.operatingIncome }},\n  \"netIncome\": {{ $items('Merge')[0].json.netIncome }},\n  \"eps\": {{ $items('Merge')[0].json.eps }},\n  \"epsDiluted\": {{ $items('Merge')[0].json.epsDiluted }}\n}\n\nNative language 10-Q text (merged item 1):\n{{ $json.cleanText }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        2176,
+        16
+      ],
+      "id": "08df2c0f-ff4f-41e5-9132-4713e2f00fe5",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2096,
+        272
+      ],
+      "id": "15915d74-d59d-494c-aad8-fd496d637e9d",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "gAHSXNpamNlgEwUt",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "be459447-075f-456f-9dbc-9ee03bd514d4",
+              "leftValue": "={{ $json.formType }}",
+              "rightValue": "10-Q",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        320
+      ],
+      "id": "4b9f9b98-c3ba-4199-8e5e-93faed9144e9",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "jsCode": "function extractNaturalLanguage(html) {\n  if (!html || typeof html !== 'string') return '';\n\n  let text = html;\n\n  // -------------------------------------------------\n  // REMOVE SCRIPT / STYLE / HEAD\n  // -------------------------------------------------\n  text = text.replace(/<script[\\s\\S]*?<\\/script>/gi, ' ');\n  text = text.replace(/<style[\\s\\S]*?<\\/style>/gi, ' ');\n  text = text.replace(/<head[\\s\\S]*?<\\/head>/gi, ' ');\n  text = text.replace(/<meta[\\s\\S]*?>/gi, ' ');\n\n  // Inline XBRL (SEC-specific noise)\n  text = text.replace(/<ix:header[\\s\\S]*?<\\/ix:header>/gi, ' ');\n  text = text.replace(/<ix:hidden[\\s\\S]*?<\\/ix:hidden>/gi, ' ');\n\n  // -------------------------------------------------\n  // STRUCTURE PRESERVATION\n  // -------------------------------------------------\n  // Add line breaks before block-level elements\n  text = text.replace(/<(\\/)?(p|div|tr|br|li|h1|h2|h3|h4|h5|h6)[^>]*>/gi, '\\n');\n\n  // Table column separation\n  text = text.replace(/<\\/(td|th)>/gi, ' | ');\n\n  // -------------------------------------------------\n  // STRIP ALL REMAINING TAGS\n  // -------------------------------------------------\n  text = text.replace(/<[^>]+>/g, ' ');\n\n  // -------------------------------------------------\n  // CLEAN WHITESPACE\n  // -------------------------------------------------\n  text = text.replace(/\\u00A0/g, ' ');\n  text = text.replace(/[ \\t]+/g, ' ');\n  text = text.replace(/\\r/g, '\\n');\n  text = text.replace(/\\n\\s*\\n/g, '\\n\\n');\n\n  // -------------------------------------------------\n  // REMOVE JUNK LINES\n  // -------------------------------------------------\n  const lines = text.split('\\n');\n  const filtered = lines.filter(line => {\n    const t = line.trim();\n\n    if (!t) return false;\n\n    // Short non-text noise\n    if (t.length < 5 && !/[a-zA-Z]/.test(t)) return false;\n\n    // Page numbers / separators\n    if (/^[\\d\\s|.()-]+$/.test(t)) return false;\n\n    return true;\n  });\n\n  return filtered.join('\\n').trim();\n}\n\n// -------------------------------------------------\n// n8n ITEM LOOP\n// -------------------------------------------------\nfor (const item of $input.all()) {\n\n  // Find HTML in common HTTP node outputs\n  const html =\n    item.json.body ||\n    item.json.data ||\n    item.json.html ||\n    item.json.response ||\n    item.json.finalLinkHtml ||\n    '';\n\n  const cleanText = extractNaturalLanguage(html);\n\n  item.json.cleanText = cleanText;\n  item.json.cleanPreview = cleanText.slice(0, 1000);\n  item.json.cleanLength = cleanText.length;\n}\n\nreturn $input.all();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        320
+      ],
+      "id": "3c63bc46-0096-4706-ae1a-77a32dfa3462",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "pineconeIndex": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        1824,
+        400
+      ],
+      "id": "7d853372-4233-4a06-854e-040d66db1820",
+      "name": "Pinecone Vector Store",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"mark\": 90,\n    \"explanation\": \"Apple shows excellent financial strength and operational performance: FY2025 revenue of $416B, gross profit ~$195B and net income ~$112B with robust operating margins (~32%), strong operating cash generation (~$82B YTD) and liquidity (cash + marketable securities ~ $133B) that comfortably cover manufacturing obligations and the company’s capital return program. The balance sheet and free cash flow support large share repurchases and dividends while keeping term debt (~$92B) at manageable levels.\\\\n\\\\nKey risks are non‑trivial but do not presently undermine fundamentals: ongoing antitrust and regulatory actions in the U.S. and EU (including DMA fines and injunctions affecting App Store economics), new tariffs and geopolitical trade measures, and heavy buybacks that reduce equity cushions. These could pressure future services revenue and margins, but given Apple’s scale, diversified product/services mix and cash generation the near‑term outlook remains very strong.\"\n\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2384,
+        272
+      ],
+      "id": "e994212b-b404-489b-b9e6-2ec69a8d9110",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bef6e0c5-fcd4-4f92-acc0-0d350ac9a5b0",
+              "name": "cleanText",
+              "value": "={{ $json.cleanText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        320
+      ],
+      "id": "b0ec2dc3-cf58-4430-b5dd-061d3d05cba5",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1808,
+        16
+      ],
+      "id": "d40fe44c-4d44-4aaa-87e4-5c05e368a58d",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "url": "=https://financialmodelingprep.com/stable/income-statement?symbol={{ $json['Name of company'] }}&apikey=QgP2qtG9ii300ZYzYRXnefYelyOG3yvr",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "c01cbde4-2d56-4b46-96fa-3218fd1dc82b",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "40f5f6ea-2b30-4579-acbf-d618876989c3",
+      "name": "Limit"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "707c1599-8054-4475-8591-1be82436e1d4",
+  "meta": {
+    "instanceId": "5115c0a2eed1a2d087b0f320db1bc8af5266b0426e8575717d3943b30273655a"
+  },
+  "id": "dSikxKtmgIa77HGGP3rI4",
+  "tags": []
+}

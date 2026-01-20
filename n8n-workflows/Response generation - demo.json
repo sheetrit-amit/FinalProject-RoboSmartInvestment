@@ -1,0 +1,506 @@
+{
+  "name": "Final project WF With BIG Query",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://financialmodelingprep.com/stable/sec-filings-search/symbol",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "symbol",
+              "value": "={{ $json.ticker }}"
+            },
+            {
+              "name": "apikey",
+              "value": "QgP2qtG9ii300ZYzYRXnefYelyOG3yvr"
+            },
+            {
+              "name": "from",
+              "value": "={{$now.setZone('Asia/Jerusalem').minus({ months: 6 }).toISODate()}}"
+            },
+            {
+              "name": "to",
+              "value": "={{$now.setZone('Asia/Jerusalem').toISODate()}}"
+            },
+            {
+              "name": "limitPerForm",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        160,
+        0
+      ],
+      "id": "0cbe828d-e74a-45a3-a53b-db0f764db714",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.finalLink}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "YourAppName contact@email.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        704,
+        0
+      ],
+      "id": "d4f924e6-1c69-4689-a49e-d9f623182fad",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert financial analyst.  \nYour job is to analyze the following company financial data and the native-language 10-Q report text, then return a JSON with:\n\n- \"mark\": integer 0–100 assessing the company’s situation (how well it is doing, stability, risks)\n- \"explanation\": a concise explanation (max 2 short paragraphs) supporting the score\n\nScoring guide:\n0–20 = severe distress  \n21–40 = weak / deteriorating  \n41–60 = average / mixed  \n61–80 = good / stable  \n81–100 = excellent\n\nReturn ONLY valid JSON with exactly:\n{\"mark\": <0-100>, \"explanation\": \"<max 2 short paragraphs>\"}\n\nNative language 10-Q text (merged item 1):\n{{ $json.cleanText }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1632,
+        0
+      ],
+      "id": "3147ce4b-7e9f-4372-8666-88a026fa588c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        224
+      ],
+      "id": "15b568c1-0c5b-4153-b3d2-877655bc8b77",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "gAHSXNpamNlgEwUt",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "be459447-075f-456f-9dbc-9ee03bd514d4",
+              "leftValue": "={{ $json.formType }}",
+              "rightValue": "10-Q",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        0
+      ],
+      "id": "684c3b1a-9290-4d04-960b-ddccce65ad6b",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"mark\": 90,\n    \"explanation\": \"Apple shows excellent financial strength and operational performance: FY2025 revenue of $416B, gross profit ~$195B and net income ~$112B with robust operating margins (~32%), strong operating cash generation (~$82B YTD) and liquidity (cash + marketable securities ~ $133B) that comfortably cover manufacturing obligations and the company’s capital return program. The balance sheet and free cash flow support large share repurchases and dividends while keeping term debt (~$92B) at manageable levels.\\\\n\\\\nKey risks are non‑trivial but do not presently undermine fundamentals: ongoing antitrust and regulatory actions in the U.S. and EU (including DMA fines and injunctions affecting App Store economics), new tariffs and geopolitical trade measures, and heavy buybacks that reduce equity cushions. These could pressure future services revenue and margins, but given Apple’s scale, diversified product/services mix and cash generation the near‑term outlook remains very strong.\"\n\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1856,
+        224
+      ],
+      "id": "4f434a42-899b-459f-bfb8-10413bfd8d7a",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "value": "pro-visitor-429015-f5",
+          "mode": "list",
+          "cachedResultName": "My First Project",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=pro-visitor-429015-f5"
+        },
+        "sqlQuery": "SELECT ticker \nFROM `pro-visitor-429015-f5.StockData.ticker_grades` WHERE mark IS NULL \nORDER BY ticker",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -608,
+        0
+      ],
+      "id": "f3ae8e95-3356-4a2e-ab2c-fefada760fc9",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "L26nn5tds0tE5gZE",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -912,
+        0
+      ],
+      "id": "fe98806d-9650-4e77-b029-2f86bb1a2560",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "value": "pro-visitor-429015-f5",
+          "mode": "list",
+          "cachedResultName": "My First Project",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=pro-visitor-429015-f5"
+        },
+        "sqlQuery": "UPDATE `pro-visitor-429015-f5.StockData.ticker_grades`\nSET\n  mark = @mark,\n  explanation = @explanation\nWHERE ticker = @ticker;\n",
+        "options": {
+          "queryParameters": {
+            "namedParameters": [
+              {
+                "name": "=mark",
+                "value": "={{ $items('Merge')[0].json.output.mark}}"
+              },
+              {
+                "name": "explanation",
+                "value": "={{ $items('Merge')[0].json.output.explanation }}"
+              },
+              {
+                "name": "ticker",
+                "value": "={{ $items('Merge')[1].json.ticker }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        2400,
+        368
+      ],
+      "id": "1565eaa6-c0a6-4e22-a830-f089e41f5885",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "L26nn5tds0tE5gZE",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\n\nlet s = item.json.cleanText ?? '';\n\n// Decode numeric HTML entities: &#160; &#8217;\ns = s.replace(/&#(\\d+);/g, (_, code) =>\n  String.fromCharCode(parseInt(code, 10))\n);\n\n// Decode hex entities: &#xA0;\ns = s.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>\n  String.fromCharCode(parseInt(hex, 16))\n);\n\n// Decode common named entities\ns = s\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/&quot;/g, '\"')\n  .replace(/&apos;/g, \"'\");\n\n// Convert non-breaking spaces\ns = s.replace(/\\u00A0/g, ' ');\n\n// Remove HTML tags\ns = s.replace(/<[^>]*>/g, ' ');\n\n// Remove checkbox / ballot symbols\ns = s.replace(/[☐☑✓✔■□◆◇]/g, ' ');\n\n// Remove control characters (keep newlines)\ns = s.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/g, ' ');\n\n// Normalize whitespace\ns = s.replace(/[ \\t]+/g, ' ');\ns = s.replace(/\\r/g, '');\ns = s.replace(/\\n[ \\t]+\\n/g, '\\n\\n');\ns = s.replace(/\\n{3,}/g, '\\n\\n');\n\n// Trim final result\nitem.json.cleanText = s.trim();\n\n// Return exactly one item\nreturn [item];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        0
+      ],
+      "id": "2d5d837f-5a1f-43cc-b7c2-dee9d769295e",
+      "name": "Clean Text"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bef6e0c5-fcd4-4f92-acc0-0d350ac9a5b0",
+              "name": "cleanText",
+              "value": "={{ $json.cleanText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "5116234d-2065-46a1-bd72-2e358f2cb496",
+      "name": "Only languages"
+    },
+    {
+      "parameters": {
+        "jsCode": "function extractNaturalLanguage(html) {\n  if (!html || typeof html !== 'string') return '';\n\n  let text = html;\n\n  // -------------------------------------------------\n  // REMOVE SCRIPT / STYLE / HEAD\n  // -------------------------------------------------\n  text = text.replace(/<script[\\s\\S]*?<\\/script>/gi, ' ');\n  text = text.replace(/<style[\\s\\S]*?<\\/style>/gi, ' ');\n  text = text.replace(/<head[\\s\\S]*?<\\/head>/gi, ' ');\n  text = text.replace(/<meta[\\s\\S]*?>/gi, ' ');\n\n  // Inline XBRL (SEC-specific noise)\n  text = text.replace(/<ix:header[\\s\\S]*?<\\/ix:header>/gi, ' ');\n  text = text.replace(/<ix:hidden[\\s\\S]*?<\\/ix:hidden>/gi, ' ');\n\n  // -------------------------------------------------\n  // STRUCTURE PRESERVATION\n  // -------------------------------------------------\n  // Add line breaks before block-level elements\n  text = text.replace(/<(\\/)?(p|div|tr|br|li|h1|h2|h3|h4|h5|h6)[^>]*>/gi, '\\n');\n\n  // Table column separation\n  text = text.replace(/<\\/(td|th)>/gi, ' | ');\n\n  // -------------------------------------------------\n  // STRIP ALL REMAINING TAGS\n  // -------------------------------------------------\n  text = text.replace(/<[^>]+>/g, ' ');\n\n  // -------------------------------------------------\n  // CLEAN WHITESPACE\n  // -------------------------------------------------\n  text = text.replace(/\\u00A0/g, ' ');\n  text = text.replace(/[ \\t]+/g, ' ');\n  text = text.replace(/\\r/g, '\\n');\n  text = text.replace(/\\n\\s*\\n/g, '\\n\\n');\n\n  // -------------------------------------------------\n  // REMOVE JUNK LINES\n  // -------------------------------------------------\n  const lines = text.split('\\n');\n  const filtered = lines.filter(line => {\n    const t = line.trim();\n\n    if (!t) return false;\n\n    // Short non-text noise\n    if (t.length < 5 && !/[a-zA-Z]/.test(t)) return false;\n\n    // Page numbers / separators\n    if (/^[\\d\\s|.()-]+$/.test(t)) return false;\n\n    return true;\n  });\n\n  return filtered.join('\\n').trim();\n}\n\n// -------------------------------------------------\n// n8n ITEM LOOP\n// -------------------------------------------------\nfor (const item of $input.all()) {\n\n  // Find HTML in common HTTP node outputs\n  const html =\n    item.json.body ||\n    item.json.data ||\n    item.json.html ||\n    item.json.response ||\n    item.json.finalLinkHtml ||\n    '';\n\n  const cleanText = extractNaturalLanguage(html);\n\n  item.json.cleanText = cleanText;\n  item.json.cleanPreview = cleanText.slice(0, 1000);\n  item.json.cleanLength = cleanText.length;\n}\n\nreturn $input.all();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        0
+      ],
+      "id": "e842ea6e-8390-46e9-851f-f04097ffee01",
+      "name": "Parse HTML output"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "eb0007da-10eb-4977-9707-916a7b0308c8",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Replace Me",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        720
+      ],
+      "id": "ec7d1e91-3958-49fe-a75e-f045dfe8f09a"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2064,
+        368
+      ],
+      "id": "8dd58cce-9bd5-4c2f-acef-c7ee4cdb6942",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Parse HTML output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Text": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only languages": {
+      "main": [
+        [
+          {
+            "node": "Clean Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse HTML output": {
+      "main": [
+        [
+          {
+            "node": "Only languages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Replace Me",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Replace Me": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "fcaac82f-0b65-425a-a009-9f5505dc02bf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5115c0a2eed1a2d087b0f320db1bc8af5266b0426e8575717d3943b30273655a"
+  },
+  "id": "QkI3ge5vomGcysDr",
+  "tags": []
+}
