@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Make the money work for you</title>
+  <style>
+    :root {
+      --bg: #f7f7f7;
+      --panel: #ffffff;
+      --text: #0f0f0f;
+      --muted: #8a8a8a;
+      --border: #e4e4e4;
+      --accent: #0f0f0f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #ffffff, #f1f1f1 45%, #ffffff);
+      color: var(--text);
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 220px 16px 32px;
+      position: relative;
+      overflow: hidden;
+      gap: 24px;
+    }
+
+    .hero-title {
+      position: fixed;
+      top: 40px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0f0f0f;
+      user-select: none;
+      pointer-events: none;
+      padding: 0 16px;
+      z-index: 2;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 900px;
+      height: calc(100vh - 260px);
+      max-height: calc(100vh - 260px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 1fr auto;
+    }
+
+    .feed {
+      padding: 24px;
+      overflow-y: auto;
+      display: grid;
+      gap: 14px;
+      background: radial-gradient(circle at 18% 18%, #fafafa, #ffffff 48%);
+    }
+
+    .bubble {
+      max-width: 80%;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fbfbfb;
+      line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+      animation: pop 180ms ease;
+    }
+
+    .bubble.user {
+      margin-left: auto;
+      background: #101010;
+      color: #ffffff;
+      border-color: #101010;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    }
+
+    .bubble.system {
+      margin: 0 auto;
+      background: transparent;
+      border-style: dashed;
+      color: var(--muted);
+    }
+
+    .bubble.bot {
+      background: #101010;
+      border-color: #101010;
+      color: #ffffff;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    }
+
+    .bubble p {
+      margin: 0;
+    }
+
+    @keyframes pop {
+      from {
+        transform: scale(0.98) translateY(4px);
+        opacity: 0.7;
+      }
+      to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+      }
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 16px 16px 18px;
+      border-top: 1px solid var(--border);
+      background: linear-gradient(180deg, #ffffff, #f9f9f9);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 56px;
+      max-height: 160px;
+      resize: vertical;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 14px 16px;
+      font-size: 15px;
+      font-family: inherit;
+      background: #ffffff;
+      color: var(--text);
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #1a1a1a;
+      box-shadow: 0 0 0 2px rgba(16, 16, 16, 0.08);
+    }
+
+    button {
+      padding: 0 20px;
+      border: 1px solid #101010;
+      background: #101010;
+      color: #ffffff;
+      border-radius: 14px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+      min-width: 120px;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: none;
+      filter: brightness(0.96);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
+      box-shadow: none;
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        border-radius: 12px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      .bubble {
+        max-width: 100%;
+      }
+
+      form {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+        min-height: 52px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="hero-title">Make the money work for you</div>
+
+  <div class="shell">
+    <main class="feed" id="feed">
+    </main>
+
+    <form id="chat-form">
+      <textarea id="message" name="message" placeholder="Type your request…" required></textarea>
+      <button type="submit" id="send">Send</button>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById("chat-form");
+    const textarea = document.getElementById("message");
+    const feed = document.getElementById("feed");
+    const sendButton = document.getElementById("send");
+    const endpoint = "http://localhost:5678/webhook-test/40ff9cfa-2280-46f7-98ad-35b43eb91226";
+
+    const addBubble = (text, role = "user") => {
+      const bubble = document.createElement("div");
+      bubble.className = `bubble ${role}`;
+      bubble.innerHTML = `<p>${escapeHTML(text)}</p>`;
+      feed.appendChild(bubble);
+      feed.scrollTop = feed.scrollHeight;
+    };
+
+    const escapeHTML = (str) =>
+      str.replace(/[&<>"']/g, (tag) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[tag] || tag));
+
+    const setSendingState = (isSending) => {
+      sendButton.disabled = isSending;
+      textarea.disabled = isSending;
+      sendButton.textContent = isSending ? "Sending…" : "Send";
+    };
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const message = textarea.value.trim();
+      if (!message) return;
+
+      addBubble(message, "user");
+      textarea.value = "";
+      setSendingState(true);
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
+
+        const contentType = response.headers.get("Content-Type") || "";
+        if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+
+        let responseText;
+        if (contentType.includes("application/json")) {
+          const data = await response.json();
+          responseText = JSON.stringify(data, null, 2);
+        } else {
+          responseText = await response.text();
+        }
+
+        addBubble(responseText, "bot");
+      } catch (error) {
+        addBubble(`Error: ${error.message}`, "bot");
+        console.error(error);
+      } finally {
+        setSendingState(false);
+        textarea.focus();
+      }
+    });
+  </script>
+</body>
+</html>
