@@ -3,286 +3,1530 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Make the money work for you</title>
-  <style>
-    :root {
-      --bg: #f7f7f7;
-      --panel: #ffffff;
-      --text: #0f0f0f;
-      --muted: #8a8a8a;
-      --border: #e4e4e4;
-      --accent: #0f0f0f;
-    }
+  <title>RoboSmartInvest — AI Portfolio Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-    * {
-      box-sizing: border-box;
+  <style>
+    /* ──────────────────────────────────────────────────────────────
+       RESET + BASE
+    ────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
     }
 
     body {
-      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #060d1a;
+      color: #dde6f5;
       min-height: 100vh;
-      background: linear-gradient(135deg, #ffffff, #f1f1f1 45%, #ffffff);
-      color: var(--text);
-      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       DESIGN TOKENS
+    ────────────────────────────────────────────────────────────── */
+    :root {
+      --bg-base:      #060d1a;
+      --bg-surface:   #0b1527;
+      --bg-elevated:  #101e35;
+      --bg-glass:     rgba(11,21,39,0.82);
+
+      --blue:         #3b82f6;
+      --blue-hover:   #60a5fa;
+      --blue-glow:    rgba(59,130,246,0.28);
+      --cyan:         #06b6d4;
+      --green:        #10b981;
+      --red:          #f43f5e;
+      --amber:        #f59e0b;
+      --purple:       #8b5cf6;
+
+      --text-1:       #e8f0ff;
+      --text-2:       #8fa8cc;
+      --text-3:       #4a607e;
+
+      --border:       rgba(59,130,246,0.10);
+      --border-hi:    rgba(59,130,246,0.28);
+
+      --r-sm:   8px;
+      --r-md:   12px;
+      --r-lg:   18px;
+      --r-xl:   24px;
+      --r-2xl:  32px;
+
+      --shadow:   0 8px 40px rgba(0,0,0,0.45);
+      --glow:     0 0 48px rgba(59,130,246,0.14);
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       SCROLLBAR
+    ────────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+
+    /* ──────────────────────────────────────────────────────────────
+       HEADER
+    ────────────────────────────────────────────────────────────── */
+    .header {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 64px;
+      background: rgba(6,13,26,0.75);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text-1);
+    }
+
+    .logo-icon {
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 8px rgba(59,130,246,0.5));
+    }
+
+    .logo-wordmark {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .logo-wordmark em {
+      font-style: normal;
+      color: var(--blue);
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .header-nav a {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      text-decoration: none;
+      transition: color 200ms;
+    }
+
+    .header-nav a:hover { color: var(--text-1); }
+
+    .header-cta {
+      padding: 8px 18px;
+      background: var(--blue);
+      color: #fff !important;
+      border-radius: var(--r-md);
+      font-weight: 600 !important;
+      font-size: 13px !important;
+      transition: background 200ms, transform 150ms, box-shadow 200ms !important;
+    }
+
+    .header-cta:hover {
+      background: var(--blue-hover) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px var(--blue-glow);
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       HERO
+    ────────────────────────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 96px 24px 80px;
+      overflow: hidden;
+    }
+
+    /* Ambient background */
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+    }
+
+    .orb-1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(59,130,246,0.18) 0%, transparent 70%);
+      top: -180px; left: -160px;
+      animation: orb-drift 12s ease-in-out infinite;
+    }
+
+    .orb-2 {
+      width: 480px; height: 480px;
+      background: radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%);
+      bottom: -100px; right: -80px;
+      animation: orb-drift 15s ease-in-out infinite reverse;
+      animation-delay: -5s;
+    }
+
+    .orb-3 {
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%);
+      top: 45%; right: 20%;
+      animation: orb-drift 18s ease-in-out infinite;
+      animation-delay: -9s;
+    }
+
+    @keyframes orb-drift {
+      0%,100% { transform: translate(0, 0) scale(1); }
+      33%     { transform: translate(24px, -32px) scale(1.06); }
+      66%     { transform: translate(-18px, 22px) scale(0.94); }
+    }
+
+    .grid-overlay {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.035) 1px, transparent 1px);
+      background-size: 52px 52px;
+      animation: grid-shift 25s linear infinite;
+      will-change: transform;
+    }
+
+    @keyframes grid-shift {
+      from { transform: translate(0,0); }
+      to   { transform: translate(52px,52px); }
+    }
+
+    /* Hero content */
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      max-width: 840px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      background: rgba(59,130,246,0.09);
+      border: 1px solid rgba(59,130,246,0.28);
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--blue-hover);
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      animation: fade-rise 0.7s ease both;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: blink 2.2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50%     { opacity: 0.35; }
+    }
+
+    .hero-h1 {
+      font-size: clamp(42px, 7.5vw, 88px);
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 1.03;
+      margin-bottom: 22px;
+      animation: fade-rise 0.7s 0.08s ease both;
+    }
+
+    .hero-h1 .line2 {
+      display: block;
+      background: linear-gradient(135deg, #60a5fa 0%, #06b6d4 45%, #10b981 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(15px, 2vw, 19px);
+      color: var(--text-2);
+      line-height: 1.65;
+      max-width: 580px;
+      margin: 0 auto 40px;
+      animation: fade-rise 0.7s 0.18s ease both;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      animation: fade-rise 0.7s 0.28s ease both;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 14px 34px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: var(--r-lg);
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      transition: background 200ms, transform 160ms, box-shadow 200ms;
+      box-shadow: 0 4px 24px var(--blue-glow);
+    }
+
+    .btn-primary:hover {
+      background: var(--blue-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 36px rgba(59,130,246,0.42);
+    }
+
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-primary svg { flex-shrink: 0; }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: transparent;
+      border: 1px solid var(--border-hi);
+      color: var(--text-2);
+      border-radius: var(--r-lg);
+      font-weight: 600;
+      font-size: 15px;
+      text-decoration: none;
+      transition: border-color 200ms, color 200ms, background 200ms;
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--blue);
+      color: var(--text-1);
+      background: rgba(59,130,246,0.06);
+    }
+
+    /* Stats row */
+    .hero-stats {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 56px;
+      flex-wrap: wrap;
+      animation: fade-rise 0.7s 0.38s ease both;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-num {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text-1);
+    }
+
+    .hero-stat-num span {
+      background: linear-gradient(135deg, #60a5fa, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-stat-label {
+      font-size: 12px;
+      color: var(--text-3);
+      margin-top: 3px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+
+    .stat-divider {
+      width: 1px;
+      height: 36px;
+      background: var(--border);
+    }
+
+    /* Scroll indicator */
+    .scroll-hint {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 220px 16px 32px;
-      position: relative;
-      overflow: hidden;
-      gap: 24px;
+      gap: 6px;
+      color: var(--text-3);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      animation: fade-rise 0.7s 0.7s ease both;
+      cursor: pointer;
     }
 
-    .hero-title {
-      position: fixed;
-      top: 40px;
-      left: 0;
-      right: 0;
-      text-align: center;
-      font-size: clamp(32px, 5vw, 56px);
+    .scroll-arrow {
+      width: 18px; height: 18px;
+      border-right: 2px solid var(--text-3);
+      border-bottom: 2px solid var(--text-3);
+      transform: rotate(45deg);
+      animation: bounce-down 1.8s ease-in-out infinite;
+    }
+
+    @keyframes bounce-down {
+      0%,100% { transform: rotate(45deg) translate(0,0); opacity: 0.5; }
+      50%      { transform: rotate(45deg) translate(3px,3px); opacity: 1; }
+    }
+
+    @keyframes fade-rise {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       HOW IT WORKS
+    ────────────────────────────────────────────────────────────── */
+    .section-how {
+      padding: 80px 24px 64px;
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .section-eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(26px, 4vw, 44px);
       font-weight: 800;
-      letter-spacing: -0.02em;
-      color: #0f0f0f;
-      user-select: none;
-      pointer-events: none;
-      padding: 0 16px;
-      z-index: 2;
+      letter-spacing: -0.025em;
+      color: var(--text-1);
+      margin-bottom: 48px;
+      max-width: 480px;
     }
 
-    .shell {
-      width: 100%;
-      max-width: 900px;
-      height: calc(100vh - 260px);
-      max-height: calc(100vh - 260px);
-      background: var(--panel);
+    .how-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 20px;
+    }
+
+    .how-card {
+      background: var(--bg-surface);
       border: 1px solid var(--border);
-      border-radius: 18px;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.06);
+      border-radius: var(--r-xl);
+      padding: 32px;
+      transition: border-color 300ms ease, transform 300ms ease, box-shadow 300ms ease;
+      opacity: 0;
+      transform: translateY(28px);
+      will-change: opacity, transform;
+    }
+
+    .how-card.in-view {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 500ms ease, transform 500ms ease,
+                  border-color 300ms, box-shadow 300ms;
+    }
+
+    .how-card:hover {
+      border-color: var(--border-hi);
+      transform: translateY(-5px);
+      box-shadow: var(--glow);
+    }
+
+    .card-step {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 16px;
+    }
+
+    .card-icon-box {
+      width: 48px; height: 48px;
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.18);
+      border-radius: var(--r-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 22px;
+    }
+
+    .how-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-1);
+      margin-bottom: 10px;
+    }
+
+    .how-card p {
+      font-size: 13.5px;
+      color: var(--text-2);
+      line-height: 1.65;
+    }
+
+    .how-card .tag {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(59,130,246,0.1);
+      color: var(--blue-hover);
+      border: 1px solid rgba(59,130,246,0.2);
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       CHAT SECTION
+    ────────────────────────────────────────────────────────────── */
+    .section-chat {
+      padding: 0 24px 80px;
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .chat-wrap {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 20px;
+      height: 620px;
+    }
+
+    /* ── Chat Panel ── */
+    .chat-panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
-      display: grid;
-      grid-template-rows: 1fr auto;
+      box-shadow: var(--shadow);
     }
 
-    .feed {
-      padding: 24px;
-      overflow-y: auto;
-      display: grid;
-      gap: 14px;
-      background: radial-gradient(circle at 18% 18%, #fafafa, #ffffff 48%);
+    .chat-topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-elevated);
+      flex-shrink: 0;
     }
 
-    .bubble {
-      max-width: 80%;
-      padding: 14px 16px;
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: blink 2.2s ease-in-out infinite;
+    }
+
+    .topbar-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-1);
+      flex: 1;
+    }
+
+    .model-chip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-3);
+      background: rgba(255,255,255,0.04);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      background: #fbfbfb;
-      line-height: 1.5;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
-      animation: pop 180ms ease;
+      padding: 3px 9px;
+      border-radius: 100px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+      transition: color 300ms;
+    }
+
+    .chat-feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    /* Bubbles */
+    .bubble {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: var(--r-lg);
+      font-size: 13.5px;
+      line-height: 1.65;
+      animation: pop-in 220ms cubic-bezier(.34,1.56,.64,1) both;
+    }
+
+    @keyframes pop-in {
+      from { opacity: 0; transform: scale(0.93) translateY(10px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
     }
 
     .bubble.user {
-      margin-left: auto;
-      background: #101010;
-      color: #ffffff;
-      border-color: #101010;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
-    }
-
-    .bubble.system {
-      margin: 0 auto;
-      background: transparent;
-      border-style: dashed;
-      color: var(--muted);
+      background: var(--blue);
+      color: #fff;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
     }
 
     .bubble.bot {
-      background: #101010;
-      border-color: #101010;
-      color: #ffffff;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
-    }
-
-    .bubble p {
-      margin: 0;
-    }
-
-    @keyframes pop {
-      from {
-        transform: scale(0.98) translateY(4px);
-        opacity: 0.7;
-      }
-      to {
-        transform: scale(1) translateY(0);
-        opacity: 1;
-      }
-    }
-
-    form {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 12px;
-      padding: 16px 16px 18px;
-      border-top: 1px solid var(--border);
-      background: linear-gradient(180deg, #ffffff, #f9f9f9);
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 56px;
-      max-height: 160px;
-      resize: vertical;
-      border-radius: 14px;
+      background: var(--bg-elevated);
       border: 1px solid var(--border);
-      padding: 14px 16px;
-      font-size: 15px;
-      font-family: inherit;
-      background: #ffffff;
-      color: var(--text);
-      transition: border-color 140ms ease, box-shadow 140ms ease;
+      color: var(--text-1);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
     }
 
-    textarea:focus {
+    .bubble.error {
+      background: rgba(244,63,94,0.08);
+      border: 1px solid rgba(244,63,94,0.25);
+      color: var(--red);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble p { margin: 0; }
+    .bubble p + p { margin-top: 7px; }
+    .bubble strong { color: var(--blue-hover); font-weight: 700; }
+    .bubble em { color: var(--cyan); font-style: normal; }
+    .bubble code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: rgba(255,255,255,0.07);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .bubble ul { padding-left: 18px; }
+    .bubble li { margin-top: 4px; }
+    .bubble .hint {
+      margin-top: 9px;
+      font-size: 12px;
+      color: var(--text-3);
+      font-style: italic;
+    }
+
+    /* Typing indicator */
+    .typing {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 14px 18px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      border-bottom-left-radius: 4px;
+      align-self: flex-start;
+      animation: pop-in 220ms ease both;
+    }
+
+    .typing span {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--text-3);
+    }
+
+    .typing span:nth-child(1) { animation: ty 1.2s 0.00s ease-in-out infinite; }
+    .typing span:nth-child(2) { animation: ty 1.2s 0.18s ease-in-out infinite; }
+    .typing span:nth-child(3) { animation: ty 1.2s 0.36s ease-in-out infinite; }
+
+    @keyframes ty {
+      0%,60%,100% { transform: translateY(0);   opacity: 0.4; }
+      30%          { transform: translateY(-8px); opacity: 1;   }
+    }
+
+    /* Input area */
+    .chat-input-area {
+      padding: 14px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-elevated);
+      flex-shrink: 0;
+    }
+
+    .chat-form {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .chat-form textarea {
+      flex: 1;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 11px 14px;
+      color: var(--text-1);
+      font-family: 'Inter', sans-serif;
+      font-size: 13.5px;
+      line-height: 1.5;
+      resize: none;
+      min-height: 44px;
+      max-height: 120px;
+      overflow-y: auto;
+      transition: border-color 200ms ease;
+    }
+
+    .chat-form textarea:focus {
       outline: none;
-      border-color: #1a1a1a;
-      box-shadow: 0 0 0 2px rgba(16, 16, 16, 0.08);
+      border-color: var(--border-hi);
     }
 
-    button {
-      padding: 0 20px;
-      border: 1px solid #101010;
-      background: #101010;
-      color: #ffffff;
-      border-radius: 14px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
+    .chat-form textarea::placeholder { color: var(--text-3); }
+
+    .send-btn {
+      width: 44px; height: 44px;
+      min-width: 44px;
+      background: var(--blue);
+      border: none;
+      border-radius: var(--r-md);
       cursor: pointer;
-      transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
-      min-width: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 200ms, transform 150ms, box-shadow 200ms;
+      flex-shrink: 0;
     }
 
-    button:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    .send-btn:hover {
+      background: var(--blue-hover);
+      transform: scale(1.06);
+      box-shadow: 0 4px 16px var(--blue-glow);
     }
 
-    button:active {
-      transform: translateY(0);
-      box-shadow: none;
-      filter: brightness(0.96);
+    .send-btn:active { transform: scale(0.97); }
+    .send-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── Visualization Panel ── */
+    .viz-panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow);
     }
 
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.6;
-      transform: none;
-      box-shadow: none;
+    .viz-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-elevated);
+      flex-shrink: 0;
     }
 
-    @media (max-width: 640px) {
-      .shell {
-        border-radius: 12px;
-      }
+    .viz-topbar-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
 
-      h1 {
-        font-size: 22px;
-      }
+    .risk-badge {
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
 
-      .bubble {
-        max-width: 100%;
-      }
+    .risk-badge.low    { background: rgba(16,185,129,0.12); color: var(--green);  border: 1px solid rgba(16,185,129,0.25); }
+    .risk-badge.medium { background: rgba(245,158,11,0.12); color: var(--amber);  border: 1px solid rgba(245,158,11,0.25); }
+    .risk-badge.high   { background: rgba(244,63,94,0.12);  color: var(--red);    border: 1px solid rgba(244,63,94,0.25); }
+    .risk-badge.med-high { background: rgba(244,63,94,0.08); color: #fb7185; border: 1px solid rgba(244,63,94,0.2); }
+    .risk-badge.med-low  { background: rgba(16,185,129,0.08); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+    .risk-badge.default { background: rgba(59,130,246,0.1); color: var(--blue-hover); border: 1px solid var(--border-hi); }
 
-      form {
+    .viz-body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Empty state */
+    .viz-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 32px;
+      text-align: center;
+    }
+
+    .viz-empty-icon {
+      width: 64px; height: 64px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: float-icon 3.5s ease-in-out infinite;
+    }
+
+    @keyframes float-icon {
+      0%,100% { transform: translateY(0);   }
+      50%     { transform: translateY(-8px); }
+    }
+
+    .viz-empty p {
+      font-size: 13px;
+      color: var(--text-3);
+      line-height: 1.55;
+      max-width: 180px;
+    }
+
+    .viz-empty .hint-examples {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .hint-example {
+      padding: 8px 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      font-size: 12px;
+      color: var(--text-2);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 200ms, color 200ms;
+    }
+
+    .hint-example:hover {
+      border-color: var(--border-hi);
+      color: var(--text-1);
+    }
+
+    /* Data state */
+    .viz-data {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      display: none;
+    }
+
+    .viz-data.active { display: flex; }
+
+    /* Donut chart */
+    .chart-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .chart-center-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .chart-center-num {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-1);
+      letter-spacing: -0.02em;
+    }
+
+    .chart-center-sub {
+      font-size: 10px;
+      color: var(--text-3);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* Stock rows */
+    .stock-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .stock-row {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 9px 12px;
+      display: grid;
+      grid-template-columns: 52px 1fr 44px auto;
+      align-items: center;
+      gap: 8px;
+      animation: pop-in 220ms ease both;
+    }
+
+    .stock-row:hover { border-color: var(--border-hi); }
+
+    .s-ticker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+
+    .s-bar-wrap {
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .s-bar {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      transition: width 900ms cubic-bezier(.34,1.06,.64,1);
+      width: 0;
+    }
+
+    .s-pct {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-2);
+      text-align: right;
+    }
+
+    .s-label {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .s-label.top-pick   { background: rgba(16,185,129,0.12); color: var(--green); }
+    .s-label.stat-hold  { background: rgba(245,158,11,0.12); color: var(--amber); }
+    .s-label.growth-opp { background: rgba(139,92,246,0.12); color: var(--purple); }
+    .s-label.balanced   { background: rgba(59,130,246,0.08); color: var(--blue-hover); }
+    .s-label.quant      { background: rgba(255,255,255,0.05); color: var(--text-2); }
+
+    /* ──────────────────────────────────────────────────────────────
+       FOOTER
+    ────────────────────────────────────────────────────────────── */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer p {
+      font-size: 12px;
+      color: var(--text-3);
+      line-height: 1.6;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .footer-links a {
+      font-size: 12px;
+      color: var(--text-3);
+      text-decoration: none;
+      transition: color 200ms;
+    }
+
+    .footer-links a:hover { color: var(--text-2); }
+
+    /* ──────────────────────────────────────────────────────────────
+       RESPONSIVE
+    ────────────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .chat-wrap {
         grid-template-columns: 1fr;
+        height: auto;
       }
+      .chat-panel { height: 500px; }
+      .viz-panel  { height: 420px; }
+      .header-nav { display: none; }
+    }
 
-      button {
-        width: 100%;
-        min-height: 52px;
-      }
+    @media (max-width: 600px) {
+      .header { padding: 0 16px; }
+      .hero { padding: 88px 16px 72px; }
+      .hero-stats { gap: 20px; }
+      .stat-divider { display: none; }
+      .section-how, .section-chat { padding-left: 16px; padding-right: 16px; }
+      .footer { flex-direction: column; align-items: flex-start; }
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       REDUCED MOTION
+    ────────────────────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      .orb, .grid-overlay, .scroll-arrow, .hero-badge::before,
+      .typing span, .viz-empty-icon { animation: none !important; }
+      .how-card { opacity: 1; transform: none !important; }
     }
   </style>
 </head>
+
 <body>
-  <div class="hero-title">Make the money work for you</div>
 
-  <div class="shell">
-    <main class="feed" id="feed">
-    </main>
+  <!-- ─── HEADER ─────────────────────────────────────────────── -->
+  <header class="header" role="banner">
+    <a class="logo-link" href="#" aria-label="RoboSmartInvest home">
+      <svg class="logo-icon" width="34" height="34" viewBox="0 0 34 34" fill="none" aria-hidden="true">
+        <rect width="34" height="34" rx="9" fill="#0d2347"/>
+        <polyline points="5,26 11,18 16,21 22,12 29,7"
+          stroke="#3b82f6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="29" cy="7" r="3.2" fill="#10b981"/>
+        <circle cx="11" cy="18" r="2"   fill="#3b82f6" opacity=".7"/>
+        <circle cx="22" cy="12" r="2"   fill="#3b82f6" opacity=".7"/>
+        <rect x="5" y="28" width="24" height="1.5" rx=".75" fill="rgba(59,130,246,0.25)"/>
+      </svg>
+      <span class="logo-wordmark">Robo<em>Smart</em>Invest</span>
+    </a>
 
-    <form id="chat-form">
-      <textarea id="message" name="message" placeholder="Type your request…" required></textarea>
-      <button type="submit" id="send">Send</button>
-    </form>
-  </div>
+    <nav class="header-nav" aria-label="Primary">
+      <a href="#how-it-works">How It Works</a>
+      <a href="#chat">Portfolio Builder</a>
+      <a href="#chat" class="header-cta">Build Portfolio →</a>
+    </nav>
+  </header>
+
+  <!-- ─── HERO ────────────────────────────────────────────────── -->
+  <section class="hero" aria-label="Hero">
+    <div class="hero-bg" aria-hidden="true">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+      <div class="grid-overlay"></div>
+    </div>
+
+    <div class="hero-content">
+      <div class="hero-badge" aria-label="AI-powered system is live">
+        AI-Powered · Live
+      </div>
+
+      <h1 class="hero-h1">
+        Make Your Money
+        <span class="line2">Work Smarter</span>
+      </h1>
+
+      <p class="hero-sub">
+        Tell us your investment amount and risk tolerance. Our AI combines
+        Markowitz portfolio theory, decision-tree risk classification, and
+        LLM fundamental analysis to build your optimal basket.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#chat" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 1.5v13M1.5 8h13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Build My Portfolio
+        </a>
+        <a href="#how-it-works" class="btn-ghost">How it works</a>
+      </div>
+
+      <div class="hero-stats" role="list">
+        <div class="hero-stat" role="listitem">
+          <div class="hero-stat-num"><span>1,001</span></div>
+          <div class="hero-stat-label">Stocks Analysed</div>
+        </div>
+        <div class="stat-divider" aria-hidden="true"></div>
+        <div class="hero-stat" role="listitem">
+          <div class="hero-stat-num"><span>5yr</span></div>
+          <div class="hero-stat-label">Price History</div>
+        </div>
+        <div class="stat-divider" aria-hidden="true"></div>
+        <div class="hero-stat" role="listitem">
+          <div class="hero-stat-num"><span>3</span></div>
+          <div class="hero-stat-label">AI Models</div>
+        </div>
+        <div class="stat-divider" aria-hidden="true"></div>
+        <div class="hero-stat" role="listitem">
+          <div class="hero-stat-num"><span>∞</span></div>
+          <div class="hero-stat-label">Free to Use</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroll-hint" onclick="document.getElementById('how-it-works').scrollIntoView({behavior:'smooth'})"
+         role="button" tabindex="0" aria-label="Scroll to learn more">
+      <span>Scroll</span>
+      <div class="scroll-arrow" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- ─── HOW IT WORKS ─────────────────────────────────────────── -->
+  <section class="section-how" id="how-it-works" aria-labelledby="how-title">
+    <div class="section-eyebrow">The System</div>
+    <h2 class="section-title" id="how-title">Three layers of intelligence</h2>
+
+    <div class="how-grid">
+      <div class="how-card" data-delay="0">
+        <div class="card-step">Step 01</div>
+        <div class="card-icon-box" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <path d="M11 3 L19 7 L19 15 L11 19 L3 15 L3 7 Z"
+              stroke="#3b82f6" stroke-width="1.8" stroke-linejoin="round"/>
+            <circle cx="11" cy="11" r="2.5" fill="#3b82f6" opacity=".7"/>
+          </svg>
+        </div>
+        <h3>Risk Classification</h3>
+        <p>A Decision Tree classifier trained on 200 companies assigns every stock in our 1,001-company universe a risk label — Low, Med-Low, Medium, Med-High, or High — using volatility, beta, and six financial ratios.</p>
+        <span class="tag">Decision Tree · scikit-learn</span>
+      </div>
+
+      <div class="how-card" data-delay="100">
+        <div class="card-step">Step 02</div>
+        <div class="card-icon-box" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <polyline points="2,18 7,10 11,13 15,6 20,3"
+              stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="20" cy="3" r="2" fill="#10b981"/>
+          </svg>
+        </div>
+        <h3>Markowitz Optimisation</h3>
+        <p>Stocks matching your risk level enter a mean-variance optimiser. It scans the Efficient Frontier and returns the portfolio with the maximum Sharpe Ratio — the best risk-adjusted return maths can find.</p>
+        <span class="tag">Modern Portfolio Theory · SciPy</span>
+      </div>
+
+      <div class="how-card" data-delay="200">
+        <div class="card-step">Step 03</div>
+        <div class="card-icon-box" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <rect x="3" y="3" width="6" height="6" rx="2" stroke="#8b5cf6" stroke-width="1.8"/>
+            <rect x="13" y="3" width="6" height="6" rx="2" stroke="#8b5cf6" stroke-width="1.8"/>
+            <rect x="3" y="13" width="6" height="6" rx="2" stroke="#8b5cf6" stroke-width="1.8"/>
+            <rect x="13" y="13" width="6" height="6" rx="2" stroke="#10b981" stroke-width="1.8"/>
+          </svg>
+        </div>
+        <h3>AI Synthesis</h3>
+        <p>LLM-generated fundamental scores from quarterly SEC filings are merged with the Markowitz weights. A final AI model produces a human-readable investment thesis for every position in the basket.</p>
+        <span class="tag">LLM · OpenRouter · Free Tier</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── CHAT SECTION ─────────────────────────────────────────── -->
+  <section class="section-chat" id="chat" aria-labelledby="chat-title">
+    <div class="section-eyebrow">Portfolio Builder</div>
+    <h2 class="section-title" id="chat-title">Tell me your goals</h2>
+
+    <div class="chat-wrap" role="main">
+
+      <!-- Chat Panel -->
+      <div class="chat-panel" role="region" aria-label="AI chat interface">
+        <div class="chat-topbar">
+          <div class="status-dot" aria-hidden="true"></div>
+          <span class="topbar-label">RoboAdvisor</span>
+          <span class="model-chip" id="model-chip" aria-live="polite" title="Active LLM model">—</span>
+        </div>
+
+        <div class="chat-feed" id="chat-feed" aria-live="polite" aria-label="Conversation">
+          <div class="bubble bot">
+            <p>Hello! I'm your AI investment advisor. Tell me your investment amount and risk tolerance, and I'll build an optimised portfolio for you.</p>
+            <p class="hint">Try: "I want to invest $10,000 with medium risk" or "Low-risk portfolio for €5,000"</p>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <form class="chat-form" id="chat-form" aria-label="Send a message">
+            <label for="msg-input" class="visually-hidden">Your message</label>
+            <textarea
+              id="msg-input"
+              placeholder="Describe your investment goals…"
+              aria-label="Investment message"
+              rows="1"
+            ></textarea>
+            <button type="submit" class="send-btn" id="send-btn" aria-label="Send message">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                <path d="M2 9h14M9 2l7 7-7 7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Visualization Panel -->
+      <div class="viz-panel" role="region" aria-label="Portfolio visualisation">
+        <div class="viz-topbar">
+          <span class="viz-topbar-label">Portfolio</span>
+          <span class="risk-badge default" id="risk-badge" aria-live="polite">—</span>
+        </div>
+
+        <div class="viz-body">
+          <!-- Empty state -->
+          <div class="viz-empty" id="viz-empty">
+            <div class="viz-empty-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                <polyline points="3,22 9,14 14,17 19,9 25,5"
+                  stroke="#4a607e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="25" cy="5" r="2.5" fill="#4a607e"/>
+              </svg>
+            </div>
+            <p>Your portfolio chart will appear here after you send your first message.</p>
+            <div class="hint-examples" aria-label="Example prompts">
+              <button class="hint-example" data-prompt="Invest $5,000 with medium risk">💬 "$5,000 with medium risk"</button>
+              <button class="hint-example" data-prompt="Build a low-risk portfolio for $20,000">💬 "Low-risk, $20,000"</button>
+              <button class="hint-example" data-prompt="High risk portfolio, I have $2,500 to invest">💬 "High risk, $2,500"</button>
+            </div>
+          </div>
+
+          <!-- Data state -->
+          <div class="viz-data" id="viz-data">
+            <div class="chart-container">
+              <canvas id="portfolio-chart" aria-label="Portfolio allocation donut chart"></canvas>
+              <div class="chart-center-label" aria-hidden="true">
+                <span class="chart-center-num" id="chart-positions">—</span>
+                <span class="chart-center-sub">positions</span>
+              </div>
+            </div>
+            <div class="stock-rows" id="stock-rows" aria-label="Stock allocations"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── FOOTER ───────────────────────────────────────────────── -->
+  <footer class="footer">
+    <p>
+      RoboSmartInvest &copy; 2025 — Ben-Gurion University of the Negev.<br>
+      For educational purposes only. Not financial advice.
+    </p>
+    <div class="footer-links">
+      <a href="#how-it-works">How it works</a>
+      <a href="#chat">Portfolio Builder</a>
+      <a href="https://github.com" rel="noopener noreferrer" target="_blank">GitHub</a>
+    </div>
+  </footer>
+
+  <!-- Visually hidden helper class -->
+  <style>.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;}</style>
 
   <script>
-    const form = document.getElementById("chat-form");
-    const textarea = document.getElementById("message");
-    const feed = document.getElementById("feed");
-    const sendButton = document.getElementById("send");
-    const endpoint = "http://localhost:5678/webhook-test/40ff9cfa-2280-46f7-98ad-35b43eb91226";
+    // ── Config ─────────────────────────────────────────────────────────────
+    const BACKEND = 'http://localhost:8000';
 
-    const addBubble = (text, role = "user") => {
-      const bubble = document.createElement("div");
-      bubble.className = `bubble ${role}`;
-      bubble.innerHTML = `<p>${escapeHTML(text)}</p>`;
-      feed.appendChild(bubble);
+    const CHART_COLORS = [
+      '#3b82f6','#06b6d4','#10b981','#8b5cf6',
+      '#f59e0b','#f43f5e','#ec4899','#14b8a6',
+      '#6366f1','#84cc16','#fb923c','#38bdf8',
+    ];
+
+    // ── DOM refs ───────────────────────────────────────────────────────────
+    const feed      = document.getElementById('chat-feed');
+    const form      = document.getElementById('chat-form');
+    const textarea  = document.getElementById('msg-input');
+    const sendBtn   = document.getElementById('send-btn');
+    const modelChip = document.getElementById('model-chip');
+    const vizEmpty  = document.getElementById('viz-empty');
+    const vizData   = document.getElementById('viz-data');
+    const riskBadge = document.getElementById('risk-badge');
+    const stockRows = document.getElementById('stock-rows');
+    const chartPos  = document.getElementById('chart-positions');
+
+    let donutChart = null;
+
+    // ── Textarea auto-resize ───────────────────────────────────────────────
+    textarea.addEventListener('input', () => {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    });
+
+    // Shift+Enter = newline; Enter = submit
+    textarea.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+    });
+
+    // ── Markdown lite ──────────────────────────────────────────────────────
+    function renderMd(txt) {
+      return txt
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g,'<em>$1</em>')
+        .replace(/`(.+?)`/g,'<code>$1</code>')
+        .replace(/^#{1,4} (.+)$/gm,'<strong>$1</strong>')
+        .replace(/^[-•] (.+)$/gm,'• $1')
+        .replace(/\n\n+/g,'</p><p>')
+        .replace(/\n/g,'<br>');
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+    }
+
+    // ── Bubble ─────────────────────────────────────────────────────────────
+    function addBubble(content, role) {
+      const el = document.createElement('div');
+      el.className = `bubble ${role}`;
+      if (role === 'bot') {
+        el.innerHTML = `<p>${renderMd(content)}</p>`;
+      } else {
+        el.innerHTML = `<p>${esc(content)}</p>`;
+      }
+      feed.appendChild(el);
       feed.scrollTop = feed.scrollHeight;
-    };
+    }
 
-    const escapeHTML = (str) =>
-      str.replace(/[&<>"']/g, (tag) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      }[tag] || tag));
+    // ── Typing indicator ───────────────────────────────────────────────────
+    let typingEl = null;
+    function showTyping() {
+      typingEl = document.createElement('div');
+      typingEl.className = 'typing';
+      typingEl.setAttribute('aria-label', 'AI is thinking…');
+      typingEl.innerHTML = '<span></span><span></span><span></span>';
+      feed.appendChild(typingEl);
+      feed.scrollTop = feed.scrollHeight;
+    }
+    function hideTyping() { typingEl?.remove(); typingEl = null; }
 
-    const setSendingState = (isSending) => {
-      sendButton.disabled = isSending;
-      textarea.disabled = isSending;
-      sendButton.textContent = isSending ? "Sending…" : "Send";
-    };
+    // ── Risk badge helper ──────────────────────────────────────────────────
+    function riskClass(r) {
+      if (!r) return 'default';
+      const l = r.toLowerCase();
+      if (l === 'low')      return 'low';
+      if (l === 'med-low')  return 'med-low';
+      if (l === 'medium')   return 'medium';
+      if (l === 'med-high') return 'med-high';
+      if (l === 'high')     return 'high';
+      return 'default';
+    }
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const message = textarea.value.trim();
-      if (!message) return;
+    // ── Label CSS class ────────────────────────────────────────────────────
+    function labelClass(lbl) {
+      if (!lbl) return 'balanced';
+      const l = lbl.toLowerCase();
+      if (l.includes('top'))        return 'top-pick';
+      if (l.includes('stat'))       return 'stat-hold';
+      if (l.includes('growth'))     return 'growth-opp';
+      if (l.includes('quantitative')) return 'quant';
+      return 'balanced';
+    }
 
-      addBubble(message, "user");
-      textarea.value = "";
-      setSendingState(true);
+    // ── Update visualisation ───────────────────────────────────────────────
+    function updateViz(data) {
+      vizEmpty.style.display = 'none';
+      vizData.classList.add('active');
+
+      // Risk badge
+      const rc = riskClass(data.risk_level);
+      riskBadge.textContent = data.risk_level || '—';
+      riskBadge.className = `risk-badge ${rc}`;
+
+      // Model chip
+      if (data.model_used) {
+        const short = data.model_used.split('/').pop().replace(':free','');
+        modelChip.textContent = short;
+        modelChip.title = data.model_used;
+      }
+
+      const portfolio = (data.portfolio || []).slice(0, 10);
+      chartPos.textContent = portfolio.length;
+
+      // Donut chart
+      if (donutChart) donutChart.destroy();
+      const ctx = document.getElementById('portfolio-chart').getContext('2d');
+      donutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: portfolio.map(p => p.ticker),
+          datasets: [{
+            data: portfolio.map(p => +(p.weight * 100).toFixed(2)),
+            backgroundColor: CHART_COLORS.slice(0, portfolio.length),
+            borderWidth: 2,
+            borderColor: '#0b1527',
+            hoverBorderWidth: 3,
+            hoverBorderColor: '#fff',
+          }],
+        },
+        options: {
+          cutout: '62%',
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: '#8fa8cc',
+                font: { family: 'Inter', size: 10 },
+                padding: 10,
+                boxWidth: 9,
+                boxHeight: 9,
+              },
+            },
+            tooltip: {
+              backgroundColor: '#101e35',
+              borderColor: 'rgba(59,130,246,0.3)',
+              borderWidth: 1,
+              titleColor: '#e8f0ff',
+              bodyColor: '#8fa8cc',
+              padding: 10,
+              callbacks: {
+                label: ctx => ` ${ctx.parsed.toFixed(1)}%`,
+              },
+            },
+          },
+          animation: { animateScale: true, duration: 700, easing: 'easeOutQuart' },
+        },
+      });
+
+      // Stock rows
+      stockRows.innerHTML = '';
+      portfolio.forEach((s, i) => {
+        const row = document.createElement('div');
+        row.className = 'stock-row';
+        row.style.animationDelay = `${i * 55}ms`;
+        const pct = (s.weight * 100).toFixed(1);
+        const lc  = labelClass(s.label);
+        row.innerHTML = `
+          <span class="s-ticker">${esc(s.ticker)}</span>
+          <div class="s-bar-wrap"><div class="s-bar" data-pct="${pct}"></div></div>
+          <span class="s-pct">${pct}%</span>
+          <span class="s-label ${lc}">${esc(s.label || '')}</span>
+        `;
+        stockRows.appendChild(row);
+        // Animate bar after paint
+        setTimeout(() => {
+          const bar = row.querySelector('.s-bar');
+          if (bar) bar.style.width = pct + '%';
+        }, 80 + i * 55);
+      });
+    }
+
+    // ── Form submit ────────────────────────────────────────────────────────
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const msg = textarea.value.trim();
+      if (!msg) return;
+
+      textarea.value = '';
+      textarea.style.height = 'auto';
+      sendBtn.disabled = true;
+      sendBtn.setAttribute('aria-busy', 'true');
+
+      addBubble(msg, 'user');
+      showTyping();
 
       try {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
+        const res = await fetch(`${BACKEND}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg }),
         });
 
-        const contentType = response.headers.get("Content-Type") || "";
-        if (!response.ok) throw new Error(`Server responded with ${response.status}`);
-
-        let responseText;
-        if (contentType.includes("application/json")) {
-          const data = await response.json();
-          responseText = JSON.stringify(data, null, 2);
-        } else {
-          responseText = await response.text();
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+          throw new Error(err.detail || `Server error ${res.status}`);
         }
 
-        addBubble(responseText, "bot");
-      } catch (error) {
-        addBubble(`Error: ${error.message}`, "bot");
-        console.error(error);
+        const data = await res.json();
+        hideTyping();
+        addBubble(data.text, 'bot');
+        updateViz(data);
+
+      } catch (err) {
+        hideTyping();
+        addBubble(
+          `Could not connect to the backend (${err.message}).\n\n` +
+          'Make sure the FastAPI server is running:\n`cd backend && python main.py`',
+          'error'
+        );
       } finally {
-        setSendingState(false);
+        sendBtn.disabled = false;
+        sendBtn.removeAttribute('aria-busy');
         textarea.focus();
       }
     });
+
+    // ── Hint-example buttons ───────────────────────────────────────────────
+    document.querySelectorAll('.hint-example').forEach(btn => {
+      btn.addEventListener('click', () => {
+        textarea.value = btn.dataset.prompt || '';
+        textarea.dispatchEvent(new Event('input'));
+        textarea.focus();
+        document.getElementById('chat').scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    // ── Scroll-reveal for how-cards ────────────────────────────────────────
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('.how-card').forEach((card, i) => {
+      card.style.transitionDelay = `${parseInt(card.dataset.delay || 0)}ms`;
+      io.observe(card);
+    });
+
+    // Scroll-hint keyboard support
+    document.querySelector('.scroll-hint')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click();
+    });
   </script>
+
 </body>
 </html>
