@@ -9,23 +9,27 @@ Original file is located at
 # ***Loading GCP and tables***
 """
 
-!pip install --quiet google-cloud-bigquery
+# Colab install command kept as note:
+# pip install --quiet google-cloud-bigquery
 
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import json, os
 
 
-info={add json key}
+# Paste service-account JSON dict here when running this standalone script.
+info = {}
 
-credentials = service_account.Credentials.from_service_account_info(info)
-
-client = bigquery.Client(
-    credentials=credentials,
-    project=credentials.project_id
-)
-
-print("Connected to:", credentials.project_id)
+if info:
+    credentials = service_account.Credentials.from_service_account_info(info)
+    client = bigquery.Client(
+        credentials=credentials,
+        project=credentials.project_id
+    )
+    print("Connected to:", credentials.project_id)
+else:
+    # Fallback to Application Default Credentials (gcloud auth application-default login)
+    client = bigquery.Client()
 
 from google.cloud import bigquery
 import pandas as pd
