@@ -1,7 +1,6 @@
 # RoboSmartInvest
 
-**AI-Powered Stock Portfolio Builder**  
-Ben-Gurion University of the Negev — Final Year Project
+**AI-Powered Stock Portfolio Builder**
 
 > Tell the system your investment amount and risk tolerance.  
 > Get back an optimised portfolio with AI-generated investment reasoning.
@@ -75,6 +74,32 @@ cd backend
 pip install -r requirements.txt
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
+
+---
+
+## Working On This Project
+
+### Recommended Local Flow
+
+1. Create a feature branch from `main`.
+2. Make changes (frontend in `frontend/`, backend in `backend/`).
+3. Run local checks:
+   ```bash
+   python -m compileall backend src
+   ```
+4. Commit and push your branch.
+5. Open a Pull Request to `main`.
+
+### Frontend/Backend Responsibilities
+
+- `frontend/index.html` is the static UI served by GitHub Pages.
+- `backend/main.py` is the FastAPI API served on Render.
+- Frontend sends requests to the deployed backend URL.
+
+### Important
+
+- Do not commit secrets (`.env`, API keys, service account JSON).
+- Render environment variables are used for backend runtime secrets.
 
 ---
 
@@ -172,6 +197,26 @@ Current free-tier rotation order:
 
 ---
 
+## GitHub Actions (CI/CD)
+
+This repository uses two workflows:
+
+1. `/.github/workflows/ci.yml`
+   - Runs on push and pull requests.
+   - Installs dependencies.
+   - Validates Python files with `python -m compileall backend src`.
+   - Runs `pip check`.
+
+2. `/.github/workflows/frontend-pages.yml`
+   - Runs automatically on every push to `main` (and manually with `workflow_dispatch`).
+   - Builds a static artifact from `frontend/`.
+   - Deploys to GitHub Pages.
+   - This is the workflow responsible for frontend publishing.
+
+If the Pages URL still shows stale content, verify this workflow's `deploy` job is green in the Actions tab.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -182,16 +227,5 @@ Current free-tier rotation order:
 | Portfolio Optimisation | NumPy · SciPy SLSQP |
 | Data Storage | Google BigQuery (EU region) |
 | Data Source | Yahoo Finance (yfinance) |
-
----
-
-## Academic Context
-
-Developed as a Final Year Project at **Ben-Gurion University of the Negev**, combining:
-- Financial Theory (Markowitz Modern Portfolio Theory)
-- Natural Language Processing (LLM intent extraction + synthesis)
-- Data Engineering (BigQuery, ETL pipelines)
-
----
 
 *For educational purposes only. Not financial advice.*
