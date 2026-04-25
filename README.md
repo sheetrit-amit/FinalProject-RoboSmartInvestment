@@ -38,173 +38,43 @@ Live donut chart + stock-allocation bars (Chart.js)
 
 ---
 
-## Full Installation Guide
+## Usage
 
-Follow these steps **in order** on a fresh machine. Steps 1–3 are one-time setup.
+### Hosted App (No Local Credentials Needed)
 
----
+Use the live deployment:
 
-### Step 1 — Install Python 3.11+
+- Frontend: `https://sheetrit-amit.github.io/FinalProject-RoboSmartInvestment/`
+- Backend API: `https://finalproject-robosmartinvestment.onrender.com`
 
-Download and install from https://www.python.org/downloads/  
-During installation, tick **"Add Python to PATH"**.
-
-Verify:
-```bash
-python --version
-# Python 3.11.x or higher
-```
-
----
-
-### Step 2 — Install Google Cloud CLI
-
-The Google Cloud CLI (`gcloud`) is required for authenticating with BigQuery.
-
-1. Download the installer from:  
-   **https://cloud.google.com/sdk/docs/install**
-
-2. Run the installer, keep all defaults, and let it add `gcloud` to PATH.
-
-3. Open a **new** terminal and verify:
-   ```bash
-   gcloud --version
-   ```
-
-4. Log in to your Google account:
-   ```bash
-   gcloud auth login
-   ```
-   This opens a browser — sign in with the Google account that has access to the BigQuery project.
-
-5. Set **Application Default Credentials** (this is a separate step from the login above — both are required):
-   ```bash
-   gcloud auth application-default login
-   ```
-   Sign in again in the browser. This creates the credentials file that Python libraries use automatically.
-
-> **Why two logins?**  
-> `gcloud auth login` lets the CLI tool talk to Google.  
-> `gcloud auth application-default login` lets Python libraries (like `google-cloud-bigquery`) talk to Google on your behalf.  
-> Both are needed.
-
----
-
-### Step 3 — Get an OpenRouter API Key
-
-OpenRouter provides free access to powerful LLMs (GPT, Llama, Gemma, etc.) with automatic fallback.
-
-1. Go to **https://openrouter.ai** and create a free account.
-2. Navigate to **Keys** → **Create Key**.
-3. Copy the key — it looks like `sk-or-v1-xxxxxxxxxxxxxxxx`.
-
----
-
-### Step 4 — Clone the repository
+To verify backend health:
 
 ```bash
-git clone <repo-url>
-cd FinalProject-RoboSmartInvestment
+curl https://finalproject-robosmartinvestment.onrender.com/health
 ```
 
----
+Example API call:
 
-### Step 5 — Create the `.env` file
-
-Create a file named **`.env`** inside the **`backend/`** folder:
-
-```
-backend/.env
+```bash
+curl -X POST https://finalproject-robosmartinvestment.onrender.com/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"I want to invest $10,000 with medium risk"}'
 ```
 
-Paste the following content, replacing the placeholder with your real OpenRouter key:
+### Local Frontend Only
 
-```env
-OPEN_ROUTER_API_KEY=sk-or-v1-your-key-here
-```
+Open `frontend/index.html` in your browser (double-click on Windows/macOS/Linux).
+The current frontend config points to the hosted Render backend.
 
-> The file must be named exactly `.env` (dot prefix, no extension) and placed inside `backend/`.  
-> It is already listed in `.gitignore` and will never be committed to git.
+### Optional: Self-Host Backend
 
----
-
-### Step 6 — Install Python dependencies
+Only needed if you want to run your own backend instance.
 
 ```bash
 cd backend
 pip install -r requirements.txt
-```
-
-This installs FastAPI, BigQuery client, NumPy, SciPy, pandas, and all other required packages.
-
----
-
-### Step 7 — Populate BigQuery (one-time data seed)
-
-This step downloads 3 years of real stock price data via Yahoo Finance and uploads it to BigQuery.  
-**Run once — skip on subsequent runs.**
-
-```bash
-# From the backend/ directory
-python seed_demo.py
-```
-
-This creates three tables in BigQuery (`StockData` dataset):
-- `daily_prices` — ~40,000 rows of daily close prices for 60 large-cap stocks
-- `companies_risk_ratings` — each stock labelled Low / Med-Low / Medium / Med-High / High
-- `ticker_grades` — analyst-style fundamental score (0–100) + explanation per stock
-
-Expected output:
-```
-✅  Seeding complete!
-    daily_prices           → 40500 rows
-    companies_risk_ratings → 54 tickers
-    ticker_grades          → 54 tickers
-```
-
----
-
-### Step 8 — Start the backend server
-
-```bash
-# From the backend/ directory
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
-
-Or simply:
-```bash
-python main.py
-```
-
-Verify the server is running — open this URL in your browser:  
-**http://localhost:8000/health**
-
-You should see:
-```json
-{ "status": "ok", "model": "openai/gpt-oss-120b:free" }
-```
-
----
-
-### Step 9 — Open the frontend
-
-Open `frontend/index.html` directly in your browser — no build step, no local server needed.  
-On Windows: double-click the file, or drag it into Chrome/Edge/Firefox.
-
-Scroll down past the hero section to reach the chat interface.  
-Type something like:
-
-> *"I want to invest $10,000 with medium risk"*
-
----
-
-## Credentials Summary
-
-| Credential | Where to Get | Where to Put |
-|---|---|---|
-| OpenRouter API key | https://openrouter.ai → Keys → Create Key | `backend/.env` as `OPEN_ROUTER_API_KEY=sk-or-v1-...` |
-| Google Cloud credentials | `gcloud auth application-default login` | Stored automatically by gcloud (no file to manage) |
-| BigQuery project access | Project owner grants `roles/bigquery.dataViewer` | Handled via gcloud login |
 
 ---
 
@@ -214,7 +84,7 @@ Type something like:
 FinalProject-RoboSmartInvestment/
 │
 ├── backend/
-│   ├── .env                  ← CREATE THIS — your OpenRouter API key goes here
+│   ├── .env                  ← optional for self-hosting only (not committed)
 │   ├── main.py               # FastAPI orchestration pipeline
 │   ├── model_router.py       # OpenRouter model rotation on 429
 │   ├── markowitz.py          # Markowitz max-Sharpe optimiser
