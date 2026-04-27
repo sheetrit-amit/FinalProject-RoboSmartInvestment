@@ -1,0 +1,485 @@
+{
+  "name": "Final Project Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "40ff9cfa-2280-46f7-98ad-35b43eb91226",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0033ddb3-0169-41d6-a0ca-50ef64e4b5a0",
+      "name": "Webhook",
+      "webhookId": "40ff9cfa-2280-46f7-98ad-35b43eb91226"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an information extraction engine. Output ONLY valid JSON. No markdown. No extra keys.\n\nExtract from the user's message:\n- balance: number or null\n- currency: string or null (e.g., \"USD\", \"EUR\", \"$\", \"₪\")\n- risk: exactly one of \"Low\", \"Medium\", \"High\", \"Med-High\", \"Med-Low\", \"Unknown\"\n\nRules:\n- If no balance is explicitly stated, balance = null.\n- If a range is stated (e.g., 1000-2000), set balance to the midpoint.\n- If risk is ambiguous, set risk = \"medium\".\n- Do NOT include any text outside the JSON.\n\nReturn JSON exactly with these keys:\n{\"balance\": <number|null>, \"currency\": <string|null>, \"risk\": \"<low|medium|high>\"}\n\nUser message:\n{{ $json.body.message }}\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "7fc0c1eb-ef88-45a1-9df3-538c0983c9ab",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"balance\":600,\"currency\":\"USD\",\"risk\":\"high\"}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        336
+      ],
+      "id": "5b25c7d2-770f-4630-8a7d-bb27c69eedbe",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        336
+      ],
+      "id": "5f7edeb7-7b14-440b-be96-6525f1ad5fa1",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "gAHSXNpamNlgEwUt",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2608,
+        16
+      ],
+      "id": "ce0662ba-9e1a-4c08-9a58-fdcb3efc9615",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "value": "pro-visitor-429015-f5",
+          "mode": "list",
+          "cachedResultName": "My First Project",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=pro-visitor-429015-f5"
+        },
+        "sqlQuery": "SELECT tg.ticker\nFROM `pro-visitor-429015-f5.StockData.ticker_grades` AS tg\nJOIN `pro-visitor-429015-f5.StockData.companies_risk_ratings` AS rr\n  ON tg.ticker = rr.ticker\nWHERE tg.mark IS NOT NULL\n  AND rr.risk_level = @risk\nORDER BY tg.ticker;\n",
+        "options": {
+          "queryParameters": {
+            "namedParameters": [
+              {
+                "name": "risk",
+                "value": "={{ $json.output.risk }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        736,
+        0
+      ],
+      "id": "55766cfa-e6d7-4812-ae59-3992adc6bba7",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "L26nn5tds0tE5gZE",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/optimize",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tickers",
+              "value": "={{ $json.tickers }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1456,
+        -144
+      ],
+      "id": "157f7713-a9e4-446a-8a89-0a51e94b72c4",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Senior Investment Strategist and Portfolio Manager for a sophisticated Robo-Advisor system. \nYour goal is to synthesize a final investment recommendation for a client based on two distinct data sources.\n\nDATA SOURCES EXPLANATION:\n1. Quantitative Data (Markowitz - Max Sharpe): You will receive a list of assets with optimized weights calculated to maximize the Sharpe Ratio (Mean-Variance Optimization).\n   Crucial Context: This model does NOT simply minimize risk (which would result in low returns). Instead, it identifies the \"Efficient Frontier\" and selects the portfolio that offers the highest expected return per unit of risk. It represents the mathematically \"smartest\" trade-off between risk and reward based on historical data.\n2. Qualitative/Fundamental Data (AI Report Analysis): You will receive a list of \"Fundamental Scores\" (0-100) and explanations for each company. These scores were generated by an LLM analyzing the most recent quarterly financial reports (SEC 10-K/10-Q), assessing future growth potential, management sentiment, and risks.\n\nYOUR TASK:\nYour task is to construct the \"Final Basket\" of stocks and provide a cohesive explanation. \nYou act as the bridge between the mathematical efficiency (Markowitz/History) and future business potential (Fundamental Analysis).\n\nINSTRUCTIONS:\n1. Review: Analyze the recommended weights from the Markowitz model against the Fundamental Scores.\n2. Synthesize:\n   - High Markowitz Weight + High Fundamental Score (80-100): Label as \"Top Pick\". Explain that this stock is a \"Double Win\": it provides excellent risk-adjusted returns historically AND has strong future business prospects.\n   - High Markowitz Weight + LOW Fundamental Score (<50): Label as \"Statistical Hold\". Explain that while the math favors this stock for portfolio efficiency (diversification/volatility balance), recent reports suggest caution (Advise the user to monitor this closely).\n   - Low Markowitz Weight + High Fundamental Score: Mention it as a \"Growth Opportunity\". The math might treat it as volatile, but the fundamentals suggest high upside potential.\n1. Output Generation: Create a final, user-friendly response.\n2. Tone: Professional, objective, data-driven, yet accessible. Focus on \"Efficiency\" and \"Smart Risk\" rather than just \"Safety\".\n\nCONSTRAINTS:\n- Do NOT recalculate the weights significantly unless a company has a \"Critical Warning\" in its fundamental analysis (Score < 3). In that case, suggest reducing exposure.\n- Do NOT hallucinate data not present in the inputs. Use only the provided tickers and scores.\n_ Write in the native language only, user friendly. When you explaining, keep it simple, minimal markdown, write more by paragraphs than by points\n\nMoskovitz model output:\n{{ $json.markowitz_text }}\nFinancial model output:\n{{ $json.fundamentals_text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2176,
+        16
+      ],
+      "id": "adc626e6-9ae2-4b41-96b8-8dfafc291a93",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "projectId": {
+          "__rl": true,
+          "value": "pro-visitor-429015-f5",
+          "mode": "list",
+          "cachedResultName": "My First Project",
+          "cachedResultUrl": "https://console.cloud.google.com/bigquery?project=pro-visitor-429015-f5"
+        },
+        "sqlQuery": "SELECT *\nFROM `pro-visitor-429015-f5.StockData.ticker_grades`\nWHERE ticker IN {{ $json.tickersTuple }}\n",
+        "options": {
+          "queryParameters": {
+            "namedParameters": [
+              {
+                "name": "tickerstuple",
+                "value": "={{ $json.tickersTuple }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        1280,
+        176
+      ],
+      "id": "2db80154-f7ad-44a5-939b-c8969acae684",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "id": "L26nn5tds0tE5gZE",
+          "name": "Google BigQuery account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2048,
+        240
+      ],
+      "id": "2193fd31-6530-4b8f-a5d8-e59fea219839",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "gAHSXNpamNlgEwUt",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "ticker"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        976,
+        -144
+      ],
+      "id": "76a9e0cb-6224-4b64-ac79-db8f2476ccd4",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const tickers = $input.all().map(item => item.json.ticker);\n\nreturn [\n  {\n    json: {\n      tickers: tickers.join(', ')\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        -144
+      ],
+      "id": "347debfd-b88d-4564-9e83-3c968ffd2d94",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1664,
+        32
+      ],
+      "id": "af707937-ffc0-4e6c-a475-f0f502cc021e",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: mixed items (some have weight, some have mark+explanation)\n// Output: ONE item with TWO plain-text strings:\n//  - markowitz_text\n//  - fundamentals_text\n\nconst all = $input.all().map(i => i.json);\n\n// --- Markowitz: ticker: weight% ---\nconst seenW = new Set();\nconst markowitzLines = [];\n\nfor (const row of all) {\n  if (row.ticker && row.weight !== undefined) {\n    if (!seenW.has(row.ticker)) {\n      seenW.add(row.ticker);\n      const pct = (Number(row.weight) * 100);\n      markowitzLines.push(`${row.ticker}: ${pct.toFixed(2)}%`);\n    }\n  }\n}\n\n// --- Fundamentals: ticker | mark | explanation ---\nconst fundamentalsMap = new Map(); // keep last per ticker\nfor (const row of all) {\n  if (row.ticker && row.mark !== undefined && row.explanation) {\n    fundamentalsMap.set(row.ticker, {\n      ticker: row.ticker,\n      mark: Number(row.mark),\n      explanation: String(row.explanation).replace(/\\s+/g, \" \").trim(),\n    });\n  }\n}\n\nconst fundamentalsLines = Array.from(fundamentalsMap.values()).map(r => {\n  return `${r.ticker} | score: ${r.mark} | ${r.explanation}`;\n});\n\n// Final strings (NON-structured, easy to paste into prompt)\nconst markowitz_text =\n  markowitzLines.length ? markowitzLines.join(\"\\n\") : \"(no markowitz weights found)\";\n\nconst fundamentals_text =\n  fundamentalsLines.length ? fundamentalsLines.join(\"\\n\\n\") : \"(no fundamental reports found)\";\n\nreturn [\n  {\n    json: {\n      markowitz_text,\n      fundamentals_text,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        32
+      ],
+      "id": "bf1ffcc3-1a63-4e76-8783-b3f452f4091f",
+      "name": "Concat output"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all tickers from input items\nconst tickers = $input.all().map(item => item.json.ticker);\n\n// Format as SQL-style tuple\nconst formatted = `(${tickers.map(t => `'${t}'`).join(',')})`;\n\nreturn [\n  {\n    json: {\n      tickersTuple: formatted\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        176
+      ],
+      "id": "3ec77ca2-b623-4794-9440-2b4a460a7d88",
+      "name": "Prepare tickers"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Prepare tickers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Concat output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Concat output": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare tickers": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "87ae2eee-0d97-4f14-8989-3fa99f6272d8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5115c0a2eed1a2d087b0f320db1bc8af5266b0426e8575717d3943b30273655a"
+  },
+  "id": "EcS86hPeUsi81Q4Xr9Mfn",
+  "tags": []
+}
