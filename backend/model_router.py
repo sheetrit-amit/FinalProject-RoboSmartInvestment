@@ -50,6 +50,7 @@ class ModelRouter:
         self.api_key = api_key
         self._failed: set[int] = set()
         self._idx = 0
+        self.was_exhausted: bool = False  # set True when all models hit 429 in one request
         if preferred_model and preferred_model in self.FREE_MODELS:
             self._idx = self.FREE_MODELS.index(preferred_model)
 
@@ -98,6 +99,7 @@ class ModelRouter:
                     logger.warning("Rate-limit on %s — rotating model.", model)
                     if not self._rotate():
                         logger.info("All models exhausted — waiting 8 s then resetting.")
+                        self.was_exhausted = True
                         time.sleep(8)
                         self.reset_failures()
                     continue

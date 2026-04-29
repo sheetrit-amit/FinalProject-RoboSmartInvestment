@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import backend.main\")",
+      "Bash(bq show *)",
+      "Bash(where bq *)",
+      "Bash(where gcloud *)",
+      "Bash(bq.cmd show *)",
+      "Bash(bq.cmd query *)",
+      "Bash(gcloud.cmd auth *)",
+      "Bash(python -c \"import fastapi, uvicorn, google.cloud.bigquery, dotenv\")",
+      "Bash(python scripts/search.py \"fintech investment robo-advisor dashboard status banner notification\" --design-system -p \"RoboSmartInvestment\")"
+    ]
+  }
+}

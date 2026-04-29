@@ -101,6 +101,46 @@ def get_fundamental_scores(
     ]
 
 
+def get_bq_context(client: bigquery.Client) -> dict:
+    """
+    Probe BigQuery for live schema context: valid risk levels with counts
+    and price date range.  Injected into the LLM extraction prompt so the
+    model knows exactly which parameter values exist in the DB.
+    """
+    risk_query = f"""
+        SELECT risk_level, COUNT(*) AS cnt
+        FROM `{_RISK_RATINGS}`
+        GROUP BY risk_level
+        ORDER BY cnt DESC
+    """
+    range_query = f"""
+        SELECT MIN(date) AS earliest, MAX(date) AS latest,
+               COUNT(DISTINCT ticker) AS ticker_count
+        FROM `{_DAILY_PRICES}`
+    """
+    try:
+        risk_rows  = list(client.query(risk_query).result())
+        range_rows = list(client.query(range_query).result())
+    except Exception as exc:
+        logger.warning("get_bq_context failed: %s", exc)
+        return {}
+
+    risk_counts = {r.risk_level: r.cnt for r in risk_rows}
+    valid_levels = list(risk_counts.keys())
+
+    rr = range_rows[0] if range_rows else None
+    price_range = (
+        {"earliest": str(rr.earliest), "latest": str(rr.latest), "tickers": rr.ticker_count}
+        if rr else {}
+    )
+
+    return {
+        "risk_levels":  valid_levels,
+        "risk_counts":  risk_counts,
+        "price_range":  price_range,
+    }
+
+
 def get_price_history(
     tickers: List[str],
     client: bigquery.Client,

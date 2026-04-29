@@ -653,6 +653,41 @@
       font-style: italic;
     }
 
+    /* Noted chip — param confirmation pill */
+    .noted-chip {
+      align-self: center;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 13px 5px 9px;
+      border-radius: 20px;
+      background: rgba(6,182,212,0.09);
+      border: 1px solid rgba(6,182,212,0.22);
+      font-size: 11.5px;
+      color: var(--cyan);
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.01em;
+      animation: noted-appear 180ms cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes noted-appear {
+      from { opacity: 0; transform: translateY(5px) scale(0.95); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .noted-chip svg { flex-shrink: 0; }
+    .noted-cursor {
+      display: inline-block;
+      width: 1.5px;
+      height: 11px;
+      background: var(--cyan);
+      animation: cur-blink 1s steps(1) infinite;
+      margin-left: 1px;
+      vertical-align: middle;
+    }
+    @keyframes cur-blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
     /* Typing indicator */
     .typing {
       display: flex;
@@ -1021,10 +1056,591 @@
       .typing span, .viz-empty-icon { animation: none !important; }
       .how-card { opacity: 1; transform: none !important; }
     }
+
+    /* ── Hide model chip ── */
+    #model-chip { display: none !important; }
+
+    /* ──────────────────────────────────────────────────────────────
+       PARAMS TOGGLE BUTTON (replaces model-chip in topbar)
+    ────────────────────────────────────────────────────────────── */
+    .params-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      background: rgba(59,130,246,0.07);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text-2);
+      font-family: 'Inter', sans-serif;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 180ms, border-color 180ms, color 180ms;
+      white-space: nowrap;
+    }
+    .params-toggle-btn:hover,
+    .params-toggle-btn.active {
+      background: rgba(59,130,246,0.14);
+      border-color: var(--border-hi);
+      color: var(--text-1);
+    }
+    .params-toggle-btn.active .ptb-dot {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+    .ptb-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text-3);
+      transition: background 200ms, box-shadow 200ms;
+      flex-shrink: 0;
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       PARAMS DRAWER
+    ────────────────────────────────────────────────────────────── */
+    /* chat-panel needs relative positioning */
+    .chat-panel { position: relative; }
+
+    .params-drawer {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .params-drawer-inner {
+      position: absolute;
+      top: 0; bottom: 0; right: 0;
+      width: 264px;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-hi);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      transform: translateX(100%);
+      transition: transform 300ms cubic-bezier(.4,0,.2,1);
+      pointer-events: all;
+      overflow-y: auto;
+    }
+
+    .params-drawer.open .params-drawer-inner {
+      transform: translateX(0);
+    }
+
+    /* Backdrop */
+    .params-drawer::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(6,13,26,0.55);
+      backdrop-filter: blur(2px);
+      opacity: 0;
+      transition: opacity 280ms ease;
+      pointer-events: none;
+    }
+    .params-drawer.open::before {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .pd-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .pd-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-2);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .pd-close {
+      width: 26px; height: 26px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 160ms, color 160ms;
+      padding: 0;
+    }
+    .pd-close:hover { background: rgba(255,255,255,0.09); color: var(--text-1); }
+
+    .pd-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      flex: 1;
+      padding: 8px 0 16px;
+    }
+
+    .param-group {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(59,130,246,0.06);
+      transition: background 150ms;
+    }
+    .param-group:last-of-type { border-bottom: none; }
+
+    .param-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-3);
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .param-check {
+      width: 16px; height: 16px;
+      border: 1.5px solid var(--text-3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: border-color 200ms, background 200ms;
+      font-size: 10px;
+      color: transparent;
+    }
+    .param-check.done {
+      border-color: var(--green);
+      background: rgba(16,185,129,0.12);
+      color: var(--green);
+    }
+
+    /* Budget row */
+    .param-budget-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .param-budget-row select {
+      flex-shrink: 0;
+      width: 80px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 7px 8px;
+      color: var(--text-1);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 200ms;
+      appearance: none;
+    }
+    .param-budget-row select:focus { outline: none; border-color: var(--border-hi); }
+
+    .param-budget-row input[type=number] {
+      flex: 1;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 7px 10px;
+      color: var(--text-1);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      transition: border-color 200ms;
+      min-width: 0;
+    }
+    .param-budget-row input[type=number]:focus { outline: none; border-color: var(--border-hi); }
+    .param-budget-row input[type=number]::placeholder { color: var(--text-3); }
+    input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+
+    /* Stock count stepper */
+    .param-topk-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .topk-stepper {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      overflow: hidden;
+    }
+
+    .topk-btn {
+      width: 32px; height: 32px;
+      background: transparent;
+      border: none;
+      color: var(--text-2);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 150ms, color 150ms;
+      flex-shrink: 0;
+    }
+    .topk-btn:hover { background: rgba(59,130,246,0.1); color: var(--text-1); }
+
+    .topk-val {
+      min-width: 36px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-1);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      padding: 0 2px;
+      line-height: 32px;
+    }
+
+    .topk-hint {
+      font-size: 11px;
+      color: var(--text-3);
+    }
+
+    /* Risk pills */
+    .param-risk-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .risk-pill-btn {
+      padding: 5px 10px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: background 160ms, border-color 160ms, color 160ms, transform 100ms;
+    }
+    .risk-pill-btn:hover { border-color: var(--border-hi); color: var(--text-1); }
+    .risk-pill-btn.selected {
+      background: rgba(59,130,246,0.14);
+      border-color: var(--blue);
+      color: var(--blue-hover);
+    }
+    .risk-pill-btn:active { transform: scale(0.96); }
+
+    /* Drawer hint */
+    .pd-hint {
+      margin: 8px 16px 0;
+      padding: 10px 12px;
+      background: rgba(59,130,246,0.05);
+      border: 1px solid rgba(59,130,246,0.10);
+      border-radius: var(--r-md);
+      font-size: 11.5px;
+      color: var(--text-3);
+      line-height: 1.5;
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       BUILD CTA BUTTON
+    ────────────────────────────────────────────────────────────── */
+    .build-cta-wrap {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      animation: fade-rise 0.45s cubic-bezier(.34,1.3,.64,1) both;
+    }
+
+    .build-cta-wrap[hidden] { display: none !important; }
+
+    .build-cta-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 36px 16px 28px;
+      background: linear-gradient(135deg, #1d4ed8 0%, #0891b2 60%, #0d9488 100%);
+      border: none;
+      border-radius: var(--r-xl);
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      overflow: hidden;
+      transition: transform 180ms ease, box-shadow 200ms ease;
+      box-shadow: 0 8px 40px rgba(59,130,246,0.35), 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .build-cta-btn:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 14px 56px rgba(59,130,246,0.45), 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    .build-cta-btn:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    /* Animated shine */
+    .build-cta-btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -75%;
+      width: 50%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+      transform: skewX(-20deg);
+      animation: cta-shine 3s ease-in-out infinite 1s;
+    }
+
+    @keyframes cta-shine {
+      0%,100% { left: -75%; opacity: 0; }
+      20%      { opacity: 1; }
+      50%      { left: 130%; opacity: 0; }
+    }
+
+    /* Outer glow ring */
+    .build-cta-btn::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: calc(var(--r-xl) + 2px);
+      background: linear-gradient(135deg, rgba(59,130,246,0.6), rgba(6,182,212,0.6), rgba(16,185,129,0.6));
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 200ms;
+    }
+
+    .build-cta-btn:hover::after { opacity: 1; }
+
+    .cta-icon {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.15);
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .cta-text-block {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+
+    .cta-label {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .cta-params-summary {
+      font-size: 11px;
+      font-weight: 400;
+      opacity: 0.75;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.01em;
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       OVERLOAD BANNER
+    ────────────────────────────────────────────────────────────── */
+    .overload-banner {
+      position: fixed;
+      top: 64px;
+      left: 0;
+      right: 0;
+      z-index: 199;
+      transform: translateY(-110%);
+      transition: transform 340ms cubic-bezier(.34,1.08,.64,1);
+      overflow: hidden;
+    }
+
+    .overload-banner.ob-visible {
+      transform: translateY(0);
+    }
+
+    .overload-banner[hidden] { display: none !important; }
+
+    /* Horizontal scan sweep */
+    .ob-scan {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(245,158,11,0.09) 40%,
+        rgba(245,158,11,0.15) 50%,
+        rgba(245,158,11,0.09) 60%,
+        transparent 100%
+      );
+      background-size: 300% 100%;
+      background-position: -100% 0;
+      animation: ob-scan 2.6s ease-in-out infinite;
+    }
+
+    @keyframes ob-scan {
+      0%   { background-position: -100% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .ob-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 11px 28px;
+      background: rgba(16,9,2,0.92);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(245,158,11,0.28);
+      box-shadow: 0 6px 32px rgba(245,158,11,0.12), 0 1px 0 rgba(245,158,11,0.08) inset;
+    }
+
+    /* Server icon box */
+    .ob-icon {
+      flex-shrink: 0;
+      width: 34px; height: 34px;
+      background: rgba(245,158,11,0.10);
+      border: 1px solid rgba(245,158,11,0.24);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: ob-icon-pulse 2.2s ease-in-out infinite;
+    }
+
+    @keyframes ob-icon-pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.35), 0 0 12px rgba(245,158,11,0.08); }
+      50%      { box-shadow: 0 0 0 7px rgba(245,158,11,0),  0 0 20px rgba(245,158,11,0.18); }
+    }
+
+    /* Pulsing status dot */
+    .ob-dot {
+      flex-shrink: 0;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #f59e0b;
+      box-shadow: 0 0 10px #f59e0b, 0 0 4px #f59e0b;
+      animation: ob-dot-blink 1.4s ease-in-out infinite;
+    }
+
+    @keyframes ob-dot-blink {
+      0%,100% { opacity: 1;    transform: scale(1); }
+      50%      { opacity: 0.2; transform: scale(0.85); }
+    }
+
+    /* Text block */
+    .ob-text {
+      flex: 1;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .ob-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fbbf24;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    .ob-sub {
+      font-size: 12px;
+      color: rgba(251,191,36,0.55);
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Close button */
+    .ob-close {
+      flex-shrink: 0;
+      width: 28px; height: 28px;
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.18);
+      border-radius: 7px;
+      color: rgba(245,158,11,0.5);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 180ms, color 180ms, border-color 180ms;
+      padding: 0;
+    }
+
+    .ob-close:hover {
+      background: rgba(245,158,11,0.18);
+      border-color: rgba(245,158,11,0.35);
+      color: #f59e0b;
+    }
+
+    .ob-close:focus-visible {
+      outline: 2px solid #f59e0b;
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 600px) {
+      .ob-inner  { padding: 10px 16px; gap: 10px; }
+      .ob-sub    { display: none; }
+      .ob-icon   { display: none; }
+      .ob-title  { font-size: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ob-scan, .ob-icon, .ob-dot { animation: none !important; }
+      .overload-banner {
+        transition: opacity 220ms ease !important;
+        transform: none !important;
+        opacity: 0;
+      }
+      .overload-banner.ob-visible { opacity: 1; }
+    }
   </style>
 </head>
 
 <body>
+
+  <!-- ─── OVERLOAD BANNER ─────────────────────────────────────── -->
+  <div id="overload-banner" class="overload-banner" role="alert" aria-live="assertive" aria-atomic="true" hidden>
+    <div class="ob-scan" aria-hidden="true"></div>
+    <div class="ob-inner">
+      <div class="ob-icon" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+          <rect x="1" y="2.5" width="15" height="4.5" rx="1.5" stroke="#f59e0b" stroke-width="1.5"/>
+          <rect x="1" y="9.5" width="15" height="4.5" rx="1.5" stroke="#f59e0b" stroke-width="1.5"/>
+          <circle cx="13.5" cy="4.75" r="1.1" fill="#f59e0b"/>
+          <circle cx="13.5" cy="11.75" r="1.1" fill="#f59e0b"/>
+          <circle cx="11"   cy="4.75" r="1.1" fill="rgba(245,158,11,0.4)"/>
+          <circle cx="11"   cy="11.75" r="1.1" fill="rgba(245,158,11,0.4)"/>
+        </svg>
+      </div>
+      <div class="ob-dot" aria-hidden="true"></div>
+      <div class="ob-text">
+        <span class="ob-title">Servers at capacity</span>
+        <span class="ob-sub">All AI models are rate-limited — cycling to next available. Response times may be longer than expected.</span>
+      </div>
+      <button class="ob-close" id="ob-close" aria-label="Dismiss notification">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 
   <!-- ─── HEADER ─────────────────────────────────────────────── -->
   <header class="header" role="banner">
@@ -1176,7 +1792,85 @@
         <div class="chat-topbar">
           <div class="status-dot" aria-hidden="true"></div>
           <span class="topbar-label">RoboAdvisor</span>
-          <span class="model-chip" id="model-chip" aria-live="polite" title="Active LLM model">—</span>
+          <button class="params-toggle-btn" id="params-toggle" aria-expanded="false" aria-controls="params-drawer">
+            <span class="ptb-dot" id="ptb-dot"></span>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <line x1="1" y1="3.5" x2="12" y2="3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="1" y1="9.5" x2="12" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="4"  cy="3.5" r="1.8" fill="var(--bg-surface)" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="9"  cy="9.5" r="1.8" fill="var(--bg-surface)" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            Parameters
+          </button>
+        </div>
+
+        <!-- Params Drawer (overlays chat feed from the right) -->
+        <div class="params-drawer" id="params-drawer" aria-hidden="true">
+          <div class="params-drawer-inner">
+            <div class="pd-header">
+              <span class="pd-title">Portfolio Setup</span>
+              <button class="pd-close" id="pd-close" aria-label="Close parameters">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                  <path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+            <div class="pd-body">
+
+              <!-- 1. Budget -->
+              <div class="param-group">
+                <div class="param-label">
+                  <span class="param-check" id="check-budget" aria-label="Budget not set">○</span>
+                  Investment Budget
+                </div>
+                <div class="param-budget-row">
+                  <select id="param-currency" aria-label="Currency">
+                    <option value="USD">$ USD</option>
+                    <option value="EUR">€ EUR</option>
+                    <option value="ILS">₪ ILS</option>
+                    <option value="GBP">£ GBP</option>
+                  </select>
+                  <input type="number" id="param-budget" min="100" max="10000000" step="100"
+                    placeholder="10,000" aria-label="Budget amount">
+                </div>
+              </div>
+
+              <!-- 2. Number of stocks -->
+              <div class="param-group">
+                <div class="param-label">
+                  <span class="param-check" id="check-topk" aria-label="Stock count not set">○</span>
+                  Number of Stocks
+                </div>
+                <div class="param-topk-row">
+                  <div class="topk-stepper">
+                    <button class="topk-btn" id="topk-dec" aria-label="Decrease stock count">−</button>
+                    <span class="topk-val" id="topk-val" aria-live="polite">5</span>
+                    <button class="topk-btn" id="topk-inc" aria-label="Increase stock count">+</button>
+                  </div>
+                  <span class="topk-hint">positions (2–15)</span>
+                </div>
+              </div>
+
+              <!-- 3. Risk level -->
+              <div class="param-group">
+                <div class="param-label">
+                  <span class="param-check" id="check-risk" aria-label="Risk level not set">○</span>
+                  Risk Level
+                </div>
+                <div class="param-risk-pills" role="radiogroup" aria-label="Risk level">
+                  <button class="risk-pill-btn" data-risk="Low"      role="radio" aria-checked="false">Low</button>
+                  <button class="risk-pill-btn" data-risk="Med-Low"  role="radio" aria-checked="false">Med-Low</button>
+                  <button class="risk-pill-btn" data-risk="Medium"   role="radio" aria-checked="false">Medium</button>
+                  <button class="risk-pill-btn" data-risk="Med-High" role="radio" aria-checked="false">Med-High</button>
+                  <button class="risk-pill-btn" data-risk="High"     role="radio" aria-checked="false">High</button>
+                </div>
+              </div>
+
+            </div>
+            <div class="pd-hint">
+              Or just describe your goals in chat — I'll detect and fill these in automatically.
+            </div>
+          </div>
         </div>
 
         <div class="chat-feed" id="chat-feed" aria-live="polite" aria-label="Conversation">
@@ -1244,6 +1938,24 @@
       </div>
 
     </div>
+
+    <!-- Build CTA — appears when all 3 params are set -->
+    <div class="build-cta-wrap" id="build-cta-wrap" hidden>
+      <button class="build-cta-btn" id="build-cta-btn" type="button" aria-label="Build portfolio with current parameters">
+        <div class="cta-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <polyline points="1,14 5,8 9,11 13,5 17,2" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="17" cy="2" r="2.2" fill="#10b981"/>
+            <rect x="1" y="15.5" width="16" height="1.2" rx=".6" fill="rgba(255,255,255,0.3)"/>
+          </svg>
+        </div>
+        <div class="cta-text-block">
+          <span class="cta-label">Build My Portfolio</span>
+          <span class="cta-params-summary" id="cta-params-summary">—</span>
+        </div>
+      </button>
+    </div>
+
   </section>
 
   <!-- ─── FOOTER ───────────────────────────────────────────────── -->
@@ -1264,7 +1976,9 @@
 
   <script>
     // ── Config ─────────────────────────────────────────────────────────────
-    const BACKEND = 'https://finalproject-robosmartinvestment.onrender.com';
+    const BACKEND = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
+      ? 'http://localhost:8000'
+      : 'https://finalproject-robosmartinvestment.onrender.com';
 
     const CHART_COLORS = [
       '#3b82f6','#06b6d4','#10b981','#8b5cf6',
@@ -1272,19 +1986,168 @@
       '#6366f1','#84cc16','#fb923c','#38bdf8',
     ];
 
+    // ── Session ID (sessionStorage = per-tab, cleared on new tab/window) ──
+    let sessionId = sessionStorage.getItem('rsiv2_session');
+    if (!sessionId) {
+      fetch(`${BACKEND}/session/new`)
+        .then(r => r.json())
+        .then(d => { sessionId = d.session_id; sessionStorage.setItem('rsiv2_session', sessionId); })
+        .catch(() => { sessionId = null; });
+    }
+
+    // ── Params state ───────────────────────────────────────────────────────
+    const params = { budget: null, currency: 'USD', topK: 5, risk: null };
+
     // ── DOM refs ───────────────────────────────────────────────────────────
     const feed      = document.getElementById('chat-feed');
     const form      = document.getElementById('chat-form');
     const textarea  = document.getElementById('msg-input');
     const sendBtn   = document.getElementById('send-btn');
-    const modelChip = document.getElementById('model-chip');
     const vizEmpty  = document.getElementById('viz-empty');
     const vizData   = document.getElementById('viz-data');
     const riskBadge = document.getElementById('risk-badge');
     const stockRows = document.getElementById('stock-rows');
     const chartPos  = document.getElementById('chart-positions');
 
+    // Drawer refs
+    const paramsToggle  = document.getElementById('params-toggle');
+    const paramsDrawer  = document.getElementById('params-drawer');
+    const pdClose       = document.getElementById('pd-close');
+    const paramBudget   = document.getElementById('param-budget');
+    const paramCurrency = document.getElementById('param-currency');
+    const topkVal       = document.getElementById('topk-val');
+    const topkDec       = document.getElementById('topk-dec');
+    const topkInc       = document.getElementById('topk-inc');
+    const riskPills     = document.querySelectorAll('.risk-pill-btn');
+    const checkBudget   = document.getElementById('check-budget');
+    const checkTopk     = document.getElementById('check-topk');
+    const checkRisk     = document.getElementById('check-risk');
+
+    // CTA refs
+    const buildCtaWrap    = document.getElementById('build-cta-wrap');
+    const buildCtaBtn     = document.getElementById('build-cta-btn');
+    const ctaParamsSummary = document.getElementById('cta-params-summary');
+
     let donutChart = null;
+
+    // ── Overload banner ────────────────────────────────────────────────────
+    const overloadBanner = document.getElementById('overload-banner');
+    const obClose        = document.getElementById('ob-close');
+    let overloadTimer    = null;
+    let bannerDismissed  = false;
+
+    function showOverloadBanner() {
+      if (bannerDismissed) return;
+      overloadBanner.hidden = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        overloadBanner.classList.add('ob-visible');
+      }));
+    }
+
+    function hideOverloadBanner() {
+      overloadBanner.classList.remove('ob-visible');
+      overloadBanner.addEventListener('transitionend', () => {
+        if (!overloadBanner.classList.contains('ob-visible')) overloadBanner.hidden = true;
+      }, { once: true });
+    }
+
+    obClose?.addEventListener('click', () => { bannerDismissed = true; hideOverloadBanner(); });
+
+    // ── Params drawer ──────────────────────────────────────────────────────
+    function openDrawer() {
+      paramsDrawer.classList.add('open');
+      paramsDrawer.setAttribute('aria-hidden', 'false');
+      paramsToggle.setAttribute('aria-expanded', 'true');
+      paramsToggle.classList.add('active');
+    }
+    function closeDrawer() {
+      paramsDrawer.classList.remove('open');
+      paramsDrawer.setAttribute('aria-hidden', 'true');
+      paramsToggle.setAttribute('aria-expanded', 'false');
+      paramsToggle.classList.remove('active');
+    }
+
+    paramsToggle.addEventListener('click', () =>
+      paramsDrawer.classList.contains('open') ? closeDrawer() : openDrawer()
+    );
+    pdClose.addEventListener('click', closeDrawer);
+    // Close on backdrop click
+    paramsDrawer.addEventListener('click', e => {
+      if (e.target === paramsDrawer) closeDrawer();
+    });
+
+    // ── Param update helpers ───────────────────────────────────────────────
+    function syncParamCheck(el, isDone) {
+      el.textContent = isDone ? '✓' : '○';
+      el.classList.toggle('done', isDone);
+    }
+
+    function updateCta() {
+      const allSet = params.budget !== null && params.risk !== null;
+      buildCtaWrap.hidden = !allSet;
+      if (allSet) {
+        const budgetStr = params.budget ? `${params.currency} ${Number(params.budget).toLocaleString()}` : 'Any budget';
+        ctaParamsSummary.textContent = `${budgetStr} · ${params.topK} stocks · ${params.risk} risk`;
+      }
+      // Toggle the ptb-dot indicator
+      document.getElementById('ptb-dot').classList.toggle('has-params', allSet);
+      paramsToggle.classList.toggle('active', allSet);
+    }
+
+    function setParam(key, value) {
+      params[key] = value;
+      if (key === 'budget') {
+        syncParamCheck(checkBudget, value !== null && value > 0);
+      }
+      if (key === 'topK') {
+        topkVal.textContent = value;
+        syncParamCheck(checkTopk, true);
+      }
+      if (key === 'risk') {
+        syncParamCheck(checkRisk, value !== null);
+        riskPills.forEach(p => {
+          const sel = p.dataset.risk === value;
+          p.classList.toggle('selected', sel);
+          p.setAttribute('aria-checked', sel ? 'true' : 'false');
+        });
+      }
+      updateCta();
+    }
+
+    // Budget input
+    paramBudget.addEventListener('change', () => {
+      const v = parseFloat(paramBudget.value);
+      setParam('budget', isNaN(v) || v <= 0 ? null : v);
+    });
+    paramCurrency.addEventListener('change', () => {
+      params.currency = paramCurrency.value;
+      updateCta();
+    });
+
+    // Stock count stepper
+    setParam('topK', 5); // default — topK is always "set"
+    topkDec.addEventListener('click', () => setParam('topK', Math.max(2,  params.topK - 1)));
+    topkInc.addEventListener('click', () => setParam('topK', Math.min(15, params.topK + 1)));
+
+    // Risk pills
+    riskPills.forEach(btn => {
+      btn.addEventListener('click', () => setParam('risk', btn.dataset.risk));
+    });
+
+    // ── CTA button ─────────────────────────────────────────────────────────
+    buildCtaBtn.addEventListener('click', () => {
+      const budgetPart = params.budget
+        ? `${params.currency} ${Number(params.budget).toLocaleString()}`
+        : 'any budget';
+      const msg = `Build my portfolio: ${budgetPart}, ${params.topK} stocks, ${params.risk} risk`;
+      closeDrawer();
+      submitToBackend(msg, {
+        explicit_budget:   params.budget,
+        explicit_currency: params.currency,
+        explicit_risk:     params.risk,
+        explicit_top_k:    params.topK,
+      });
+    });
 
     // ── Textarea auto-resize ───────────────────────────────────────────────
     textarea.addEventListener('input', () => {
@@ -1292,7 +2155,6 @@
       textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
     });
 
-    // Shift+Enter = newline; Enter = submit
     textarea.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
     });
@@ -1318,11 +2180,7 @@
     function addBubble(content, role) {
       const el = document.createElement('div');
       el.className = `bubble ${role}`;
-      if (role === 'bot') {
-        el.innerHTML = `<p>${renderMd(content)}</p>`;
-      } else {
-        el.innerHTML = `<p>${esc(content)}</p>`;
-      }
+      el.innerHTML = role === 'bot' ? `<p>${renderMd(content)}</p>` : `<p>${esc(content)}</p>`;
       feed.appendChild(el);
       feed.scrollTop = feed.scrollHeight;
     }
@@ -1336,8 +2194,66 @@
       typingEl.innerHTML = '<span></span><span></span><span></span>';
       feed.appendChild(typingEl);
       feed.scrollTop = feed.scrollHeight;
+      overloadTimer = setTimeout(showOverloadBanner, 12000);
     }
-    function hideTyping() { typingEl?.remove(); typingEl = null; }
+    function hideTyping() {
+      typingEl?.remove();
+      typingEl = null;
+      clearTimeout(overloadTimer);
+      overloadTimer = null;
+    }
+
+    // ── Noted chip ─────────────────────────────────────────────────────────
+    function showNotedChip(parts) {
+      if (!parts.length) return;
+      const fullText = 'Noted — ' + parts.join(' · ');
+      const el = document.createElement('div');
+      el.className = 'noted-chip';
+      el.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span class="noted-text"></span><span class="noted-cursor"></span>
+      `;
+      feed.appendChild(el);
+      feed.scrollTop = feed.scrollHeight;
+      const textEl = el.querySelector('.noted-text');
+      const cursorEl = el.querySelector('.noted-cursor');
+      let i = 0;
+      const type = () => {
+        if (i < fullText.length) {
+          textEl.textContent += fullText[i++];
+          feed.scrollTop = feed.scrollHeight;
+          setTimeout(type, 22);
+        } else {
+          setTimeout(() => { cursorEl.style.animation = 'none'; cursorEl.style.opacity = '0'; }, 900);
+        }
+      };
+      setTimeout(type, 130);
+    }
+
+    // ── Apply params detected by model ─────────────────────────────────────
+    function applyDetectedParams(detected) {
+      if (!detected) return;
+      const noted = [];
+      if (detected.balance && detected.balance > 0) {
+        paramBudget.value = detected.balance;
+        const cur = detected.currency || 'USD';
+        if (detected.currency) paramCurrency.value = detected.currency;
+        setParam('budget', detected.balance);
+        params.currency = cur;
+        noted.push(`${Number(detected.balance).toLocaleString()} ${cur}`);
+      }
+      if (detected.top_k) {
+        setParam('topK', Math.max(2, Math.min(15, detected.top_k)));
+        noted.push(`${detected.top_k} stocks`);
+      }
+      if (detected.risk) {
+        setParam('risk', detected.risk);
+        noted.push(`Risk: ${detected.risk}`);
+      }
+      showNotedChip(noted);
+    }
 
     // ── Risk badge helper ──────────────────────────────────────────────────
     function riskClass(r) {
@@ -1371,13 +2287,6 @@
       const rc = riskClass(data.risk_level);
       riskBadge.textContent = data.risk_level || '—';
       riskBadge.className = `risk-badge ${rc}`;
-
-      // Model chip
-      if (data.model_used) {
-        const short = data.model_used.split('/').pop().replace(':free','');
-        modelChip.textContent = short;
-        modelChip.title = data.model_used;
-      }
 
       const portfolio = (data.portfolio || []).slice(0, 10);
       chartPos.textContent = portfolio.length;
@@ -1452,26 +2361,24 @@
       });
     }
 
-    // ── Form submit ────────────────────────────────────────────────────────
-    form.addEventListener('submit', async e => {
-      e.preventDefault();
-      const msg = textarea.value.trim();
-      if (!msg) return;
-
-      textarea.value = '';
-      textarea.style.height = 'auto';
+    // ── Core submit function (used by form AND CTA button) ────────────────
+    async function submitToBackend(msg, explicitParams = {}) {
       sendBtn.disabled = true;
       sendBtn.setAttribute('aria-busy', 'true');
+      bannerDismissed = false;
 
       addBubble(msg, 'user');
       showTyping();
 
       try {
+        const body = { message: msg, session_id: sessionId, ...explicitParams };
         const res = await fetch(`${BACKEND}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg }),
+          body: JSON.stringify(body),
         });
+
+        if (res.headers.get('X-Overloaded') === 'true') showOverloadBanner();
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
@@ -1480,11 +2387,14 @@
 
         const data = await res.json();
         hideTyping();
+        hideOverloadBanner();
         addBubble(data.text, 'bot');
-        updateViz(data);
+        if (data.build_mode) updateViz(data);
+        if (!data.build_mode) applyDetectedParams(data.params_detected);
 
       } catch (err) {
         hideTyping();
+        hideOverloadBanner();
         addBubble(
           `Could not connect to the backend (${err.message}).\n\n` +
           'Make sure the FastAPI server is running:\n`cd backend && python main.py`',
@@ -1495,6 +2405,16 @@
         sendBtn.removeAttribute('aria-busy');
         textarea.focus();
       }
+    }
+
+    // ── Form submit ────────────────────────────────────────────────────────
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const msg = textarea.value.trim();
+      if (!msg) return;
+      textarea.value = '';
+      textarea.style.height = 'auto';
+      submitToBackend(msg);
     });
 
     // ── Hint-example buttons ───────────────────────────────────────────────

@@ -98,7 +98,7 @@ def markowitz_solver(
         raise RuntimeError(f"Optimisation failed: {result.message}")
 
     weights = pd.Series(result.x, index=expected_returns.index)
-    return weights[weights > 0.001].round(4).sort_values(ascending=False)
+    return weights[weights > 1e-6].round(6).sort_values(ascending=False)
 
 
 # ---------------------------------------------------------------------------
