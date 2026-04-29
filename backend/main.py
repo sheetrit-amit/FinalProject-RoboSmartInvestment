@@ -135,6 +135,11 @@ WRITING RULES:
 - 6-10 sentences, paragraph style (no bullet points)
 - Bold only ticker symbols with **TICKER**
 - Focus on WHY each key position is included
+- STOCK COUNT: Always address the number of positions delivered vs what the user requested.
+  If delivered == requested: briefly confirm (e.g. "Here are your X positions as requested.").
+  If delivered < requested: explain honestly that the Markowitz optimiser concentrated
+  the risk-adjusted allocation into fewer names — the omitted stocks did not improve
+  the Sharpe ratio — and ask if the user would like to adjust the count or risk level.
 - Close with one risk disclaimer sentence
 - Do NOT invent data not present in the inputs
 - If conversation history is present, personalise the response
@@ -327,8 +332,9 @@ def chat(body: ChatRequest, http_response: Response):
     # 4. LLM synthesis
     markowitz_text = "\n".join(f"{w['ticker']}: {w['weight']*100:.2f}%" for w in weights)
     fund_text      = _build_fund_text(fundamentals)
+    delivered = len(weights)
     user_ctx = (
-        f"User profile — Risk: {risk}, Stocks requested: {top_k}"
+        f"User profile — Risk: {risk}, Stocks requested: {top_k}, Stocks delivered: {delivered}"
         + (f", Amount: {balance:,.0f} {currency}" if balance else "")
         + f"\n\nMarkowitz weights:\n{markowitz_text}"
         + f"\n\nFundamental scores:\n{fund_text}"
