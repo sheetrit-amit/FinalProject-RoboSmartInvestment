@@ -299,7 +299,17 @@ def chat(body: ChatRequest, http_response: Response):
     # 2. Markowitz + top-k
     try:
         weights = run_markowitz(tickers, bq)
-        weights = _renormalize(weights[:top_k])
+        weights = weights[:top_k]
+        # If optimizer concentrated on fewer stocks than requested, pad with
+        # remaining tickers at equal small weight so the user gets top_k positions.
+        used = {w["ticker"] for w in weights}
+        remaining = [t for t in tickers if t not in used]
+        fill_count = top_k - len(weights)
+        if fill_count > 0 and remaining:
+            small_w = (1.0 / (top_k * 4))  # small equal nudge weight
+            for t in remaining[:fill_count]:
+                weights.append({"ticker": t, "weight": small_w})
+        weights = _renormalize(weights)
         logger.info("Markowitz → %d positions", len(weights))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Portfolio optimisation failed: {exc}")
