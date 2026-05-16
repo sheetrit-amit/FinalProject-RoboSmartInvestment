@@ -1,0 +1,327 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{padding:8px 0 32px;max-width:760px;margin:0 auto;font-family:var(--font-sans)}
+.diag-title{font-size:15px;font-weight:500;color:var(--color-text-primary);text-align:center;margin-bottom:4px}
+.diag-sub{font-size:12px;color:var(--color-text-tertiary);text-align:center;margin-bottom:14px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:center;margin-bottom:18px;padding:8px 12px;border:1px solid var(--color-border-tertiary);border-radius:var(--border-radius-md)}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.leg-sq{width:11px;height:11px;border-radius:2px;flex-shrink:0}
+.pipeline{display:flex;flex-direction:column;align-items:stretch;gap:0}
+.stage{border-radius:var(--border-radius-lg);border:1px solid;overflow:hidden}
+.sh{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--color-border-tertiary)}
+.snum{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0;color:#fff}
+.stitle{font-size:13px;font-weight:500;flex:1;line-height:1.2}
+.sbadge{font-size:10px;padding:2px 9px;border-radius:10px;font-weight:400;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.sbody{padding:9px 12px 11px;font-size:11.5px;line-height:1.6;color:var(--color-text-secondary)}
+.tk{display:inline-block;border:1px solid var(--color-border-secondary);border-radius:3px;padding:0px 5px;font-size:10px;margin:1px 1px;color:var(--color-text-secondary)}
+.conn{display:flex;align-items:center;justify-content:center;height:36px;position:relative}
+.cline{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--color-border-secondary);transform:translateX(-50%)}
+.chead{position:absolute;left:50%;bottom:0;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid var(--color-border-secondary);transform:translateX(-50%)}
+.clabel{position:absolute;left:calc(50% + 10px);font-size:10px;color:var(--color-text-tertiary);white-space:nowrap;background:var(--color-background-tertiary);padding:0 3px}
+.gate-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.gin{background:var(--color-background-info);color:var(--color-text-info);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:500}
+.garr{color:var(--color-text-warning);font-size:13px;font-weight:500}
+.gfilter{border:1px solid var(--color-border-warning);border-radius:5px;padding:3px 9px;font-size:10.5px;color:var(--color-text-warning)}
+.gout{background:var(--color-background-success);color:var(--color-text-success);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:500}
+.gdrop{font-size:10px;color:var(--color-text-tertiary);font-style:italic}
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin-top:7px}
+.lrow{display:flex;align-items:flex-start;gap:5px;font-size:11px;line-height:1.4;color:var(--color-text-secondary)}
+.ldot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.jblock{background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:5px;padding:7px 10px;font-size:10.5px;font-family:var(--font-mono);margin-top:7px;color:var(--color-text-tertiary);line-height:1.7}
+.jk{color:var(--color-text-info)}
+.jv{color:var(--color-text-success)}
+.jvs{color:var(--color-text-warning)}
+.rgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:8px}
+.ritem{background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:5px;padding:8px 9px;text-align:center}
+.rti{display:block;margin-bottom:3px}
+.rtt{font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px}
+.rtd{font-size:10px;color:var(--color-text-tertiary)}
+/* llm = purple ramp */
+.s-llm{background:#EEEDFE;border-color:#AFA9EC}
+.s-llm .sh{background:#CECBF6}
+.s-llm .snum{background:#534AB7}
+.s-llm .stitle{color:#26215C}
+.s-llm .sbadge{background:#7F77DD;color:#EEEDFE}
+@media(prefers-color-scheme:dark){
+.s-llm{background:#26215C;border-color:#534AB7}
+.s-llm .sh{background:#3C3489}
+.s-llm .stitle{color:#CECBF6}
+.s-llm .sbadge{background:#534AB7;color:#EEEDFE}
+}
+/* bigquery = blue ramp */
+.s-bq{background:#E6F1FB;border-color:#85B7EB}
+.s-bq .sh{background:#B5D4F4}
+.s-bq .snum{background:#185FA5}
+.s-bq .stitle{color:#042C53}
+.s-bq .sbadge{background:#378ADD;color:#E6F1FB}
+@media(prefers-color-scheme:dark){
+.s-bq{background:#042C53;border-color:#185FA5}
+.s-bq .sh{background:#0C447C}
+.s-bq .stitle{color:#B5D4F4}
+.s-bq .sbadge{background:#185FA5;color:#E6F1FB}
+}
+/* filter = amber ramp */
+.s-filter{background:#FAEEDA;border-color:#EF9F27}
+.s-filter .sh{background:#FAC775}
+.s-filter .snum{background:#854F0B}
+.s-filter .stitle{color:#412402}
+.s-filter .sbadge{background:#BA7517;color:#FAEEDA}
+@media(prefers-color-scheme:dark){
+.s-filter{background:#412402;border-color:#BA7517}
+.s-filter .sh{background:#633806}
+.s-filter .stitle{color:#FAC775}
+.s-filter .sbadge{background:#854F0B;color:#FAEEDA}
+}
+/* computation = green ramp */
+.s-comp{background:#EAF3DE;border-color:#97C459}
+.s-comp .sh{background:#C0DD97}
+.s-comp .snum{background:#3B6D11}
+.s-comp .stitle{color:#173404}
+.s-comp .sbadge{background:#639922;color:#EAF3DE}
+@media(prefers-color-scheme:dark){
+.s-comp{background:#173404;border-color:#3B6D11}
+.s-comp .sh{background:#27500A}
+.s-comp .stitle{color:#C0DD97}
+.s-comp .sbadge{background:#3B6D11;color:#EAF3DE}
+}
+/* response/api = gray ramp */
+.s-resp{background:#F1EFE8;border-color:#B4B2A9}
+.s-resp .sh{background:#D3D1C7}
+.s-resp .snum{background:#444441}
+.s-resp .stitle{color:#2C2C2A}
+.s-resp .sbadge{background:#5F5E5A;color:#F1EFE8}
+@media(prefers-color-scheme:dark){
+.s-resp{background:#2C2C2A;border-color:#5F5E5A}
+.s-resp .sh{background:#444441}
+.s-resp .stitle{color:#D3D1C7}
+.s-resp .sbadge{background:#5F5E5A;color:#F1EFE8}
+}
+/* user = teal ramp */
+.s-user{background:#E1F5EE;border-color:#5DCAA5}
+.s-user .sh{background:#9FE1CB}
+.s-user .snum{background:#0F6E56}
+.s-user .stitle{color:#04342C}
+.s-user .sbadge{background:#1D9E75;color:#E1F5EE}
+@media(prefers-color-scheme:dark){
+.s-user{background:#04342C;border-color:#0F6E56}
+.s-user .sh{background:#085041}
+.s-user .stitle{color:#9FE1CB}
+.s-user .sbadge{background:#0F6E56;color:#E1F5EE}
+}
+/* frontend = gray ramp (slightly warmer) */
+.s-fe{background:#F1EFE8;border-color:#888780}
+.s-fe .sh{background:#D3D1C7}
+.s-fe .snum{background:#2C2C2A}
+.s-fe .stitle{color:#2C2C2A}
+.s-fe .sbadge{background:#888780;color:#F1EFE8}
+@media(prefers-color-scheme:dark){
+.s-fe{background:#2C2C2A;border-color:#444441}
+.s-fe .sh{background:#444441}
+.s-fe .stitle{color:#D3D1C7}
+.s-fe .sbadge{background:#5F5E5A;color:#F1EFE8}
+}
+</style>
+<div class="wrap">
+  <div class="diag-title"><i class="ti ti-brain" aria-hidden="true"></i> RoboSmartInvest — full processing pipeline</div>
+  <div class="diag-sub">End-to-end flow from user chat input to portfolio rendering</div>
+  <div class="legend">
+    <div class="leg"><div class="leg-sq" style="background:#7F77DD;border:1px solid #534AB7"></div>LLM call</div>
+    <div class="leg"><div class="leg-sq" style="background:#378ADD;border:1px solid #185FA5"></div>BigQuery</div>
+    <div class="leg"><div class="leg-sq" style="background:#639922;border:1px solid #3B6D11"></div>Computation</div>
+    <div class="leg"><div class="leg-sq" style="background:#EF9F27;border:1px solid #BA7517"></div>Filter / gate</div>
+    <div class="leg"><div class="leg-sq" style="background:#888780;border:1px solid #5F5E5A"></div>Frontend</div>
+    <div class="leg"><div class="leg-sq" style="background:#5DCAA5;border:1px solid #1D9E75"></div>User input</div>
+  </div>
+  <div class="pipeline">
+
+    <!-- STAGE 1 -->
+    <div class="stage s-user">
+      <div class="sh">
+        <div class="snum">1</div>
+        <div class="stitle">Stage 1 — User input</div>
+        <div class="sbadge"><i class="ti ti-message-circle" aria-hidden="true"></i>Chat interface</div>
+      </div>
+      <div class="sbody">
+        User types a natural language investment query:
+        <em>&ldquo;I want to invest $10,000 with medium risk&rdquo;</em>
+      </div>
+    </div>
+
+    <div class="conn"><div class="cline"></div><div class="chead"></div><div class="clabel">natural language message</div></div>
+
+    <!-- STAGE 2 -->
+    <div class="stage s-llm">
+      <div class="sh">
+        <div class="snum">2</div>
+        <div class="stitle">Stage 2 — Intent extraction &nbsp;<i class="ti ti-bolt" aria-hidden="true"></i>&nbsp;LLM call #1</div>
+        <div class="sbadge"><i class="ti ti-robot" aria-hidden="true"></i>OpenRouter · free model</div>
+      </div>
+      <div class="sbody">
+        LLM parses the message and returns three structured fields:<br>
+        <span class="tk">balance</span> <em>number</em> &nbsp;·&nbsp;
+        <span class="tk">currency</span> <em>string</em> &nbsp;·&nbsp;
+        <span class="tk">risk_level</span> <em>Low / Med-Low / Medium / Med-High / High</em>
+      </div>
+    </div>
+
+    <div class="conn"><div class="cline"></div><div class="chead"></div><div class="clabel">{ balance, currency, risk_level }</div></div>
+
+    <!-- STAGE 3 -->
+    <div class="stage s-bq">
+      <div class="sh">
+        <div class="snum">3</div>
+        <div class="stitle">Stage 3 — Candidate fetch</div>
+        <div class="sbadge"><i class="ti ti-database" aria-hidden="true"></i>BigQuery · companies_risk_ratings</div>
+      </div>
+      <div class="sbody">
+        Queries <strong>companies_risk_ratings</strong> table with <span class="tk">risk_level</span> as the filter key.
+        Returns <strong>15–25 candidate ticker symbols</strong> whose risk rating matches the user's profile.
+      </div>
+    </div>
+
+    <div class="conn"><div class="cline"></div><div class="chead"></div><div class="clabel">15–25 candidate tickers</div></div>
+
+    <!-- STAGE 4 -->
+    <div class="stage s-filter">
+      <div class="sh">
+        <div class="snum">4</div>
+        <div class="stitle">Stage 4 — Technical scanner &nbsp;<i class="ti ti-filter" aria-hidden="true"></i>&nbsp;Pre-filter gate</div>
+        <div class="sbadge"><i class="ti ti-chart-line" aria-hidden="true"></i>Yahoo Finance · 6-month OHLCV · scored 0–100</div>
+      </div>
+      <div class="sbody">
+        Each ticker scored on 11 momentum &amp; trend signals from 6 months of daily data:<br>
+        <span class="tk">EMA trend (50)</span><span class="tk">Golden cross</span><span class="tk">RSI divergence</span><span class="tk">MACD</span><span class="tk">Rel. strength vs S&amp;P 500</span><span class="tk">Chaikin MF</span><span class="tk">VCP squeeze</span><span class="tk">Near support</span><span class="tk">Bull candle</span><span class="tk">Inst. absorption</span><span class="tk">Rel. volume</span>
+        <div class="gate-row">
+          <div class="gin"><i class="ti ti-arrow-down-circle" aria-hidden="true"></i>&nbsp;15–25 tickers in</div>
+          <div class="garr">&#10230;</div>
+          <div class="gfilter"><i class="ti ti-alert-triangle" aria-hidden="true"></i>&nbsp;score &ge; 50 threshold</div>
+          <div class="garr">&#10230;</div>
+          <div class="gout"><i class="ti ti-circle-check" aria-hidden="true"></i>&nbsp;filtered &amp; ranked</div>
+          <div class="gdrop">(score &lt; 50 → dropped)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="cline"></div><div class="chead"></div><div class="clabel">filtered tickers + technical_score[ ]</div></div>
+
+    <!-- STAGE 5 -->
+    <div class="stage s-comp">
+      <div class="sh">
+        <div class="snum">5</div>
+        <div class="stitle">Stage 5 — Markowitz optimization</div>
+        <div class="sbadge"><i class="ti ti-settings" aria-hidden="true"></i>SciPy SLSQP · mean-variance · efficient frontier</div>
+      </div>
+      <div class="sbody">
+        Downloads historical daily prices from <strong>BigQuery (daily_prices)</strong>.
+        Computes <em>expected returns</em> + <em>covariance matrix</em>, then runs SciPy SLSQP to
+        maximize the <strong>Sharpe Ratio</strong> on the Efficient Frontier.<br>
+        Output: optimal weight per ticker — <span class="tk">&Sigma; weights = 1.0</span>
+      </div>
+    </div>
+
+    <div class="conn"><div class="cline"></div><div class="chead"></div><div class="clabel">{ ticker, weight }[ ] — &Sigma; = 1.0</div></div>
+
+    <!-- STAGE 6 -->
+    <div class="stage s-bq">
+      <div class="sh">
+        <div class="snum">6</div>
+        <div class="stitle">Stage 6 — Fundamental score fetch</div>
+        <div class="sbadge"><i class="ti ti-database" aria-hidden="true"></i>BigQuery · ticker_grades</div>
+      </div>
+      <div class="sbody">
+        For each portfolio ticker, queries <strong>ticker_grades</strong> for pre-computed analyst-style scores (0–100).<br>
+        Scores were generated by LLM analysis of <strong>SEC 10-Q filings</strong>.
+        Returns: <span class="tk">fundamental_score</span> + <span class="tk">explanation</span> per ticker.
+      </div>
+    </div>
+
+    <div class="conn"><div class="cline"></div><div class="chead"></div><div class="clabel">{ ticker, fundamental_score, explanation }[ ]</div></div>
+
+    <!-- STAGE 7 -->
+    <div class="stage s-comp">
+      <div class="sh">
+        <div class="snum">7</div>
+        <div class="stitle">Stage 7 — Portfolio labelling</div>
+        <div class="sbadge"><i class="ti ti-tag" aria-hidden="true"></i>Rule-based classification (weight × fundamental score)</div>
+      </div>
+      <div class="sbody">
+        Each position assigned a label based on its portfolio weight and fundamental score:
+        <div class="lgrid">
+          <div class="lrow"><div class="ldot" style="background:#BA7517"></div><span><strong>weight &gt;15%</strong> &amp; score &ge;70 → <em>&ldquo;Top Pick&rdquo;</em></span></div>
+          <div class="lrow"><div class="ldot" style="background:#888780"></div><span><strong>weight &gt;15%</strong> &amp; score &lt;50 → <em>&ldquo;Statistical Hold&rdquo;</em></span></div>
+          <div class="lrow"><div class="ldot" style="background:#639922"></div><span><strong>weight &le;15%</strong> &amp; score &ge;70 → <em>&ldquo;Growth Opportunity&rdquo;</em></span></div>
+          <div class="lrow"><div class="ldot" style="background:#378ADD"></div><span><em>everything else</em> → <em>&ldquo;Balanced Position&rdquo;</em></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="cline"></div><div class="chead"></div><div class="clabel">portfolio with labels assigned</div></div>
+
+    <!-- STAGE 8 -->
+    <div class="stage s-llm">
+      <div class="sh">
+        <div class="snum">8</div>
+        <div class="stitle">Stage 8 — Narrative synthesis &nbsp;<i class="ti ti-bolt" aria-hidden="true"></i>&nbsp;LLM call #2</div>
+        <div class="sbadge"><i class="ti ti-robot" aria-hidden="true"></i>OpenRouter · free model</div>
+      </div>
+      <div class="sbody">
+        LLM receives the enriched portfolio + user context and writes a human-readable investment thesis.<br>
+        <strong>Inputs:</strong>
+        <span class="tk">tickers[ ]</span><span class="tk">weights[ ]</span><span class="tk">fundamental_scores[ ]</span><span class="tk">technical_scores[ ]</span><span class="tk">labels[ ]</span><span class="tk">risk_level</span><span class="tk">balance</span><span class="tk">currency</span><br>
+        <strong>Output:</strong> narrative investment thesis text
+      </div>
+    </div>
+
+    <div class="conn"><div class="cline"></div><div class="chead"></div><div class="clabel">narrative text</div></div>
+
+    <!-- STAGE 9 -->
+    <div class="stage s-resp">
+      <div class="sh">
+        <div class="snum">9</div>
+        <div class="stitle">Stage 9 — Response to frontend</div>
+        <div class="sbadge"><i class="ti ti-antenna" aria-hidden="true"></i>Backend API · JSON payload</div>
+      </div>
+      <div class="sbody">
+        Assembles and returns structured JSON:
+        <div class="jblock">
+          {&nbsp;<span class="jk">"text"</span>: <span class="jvs">"[LLM narrative]"</span>,<br>
+          &nbsp;<span class="jk">"portfolio"</span>: [ { <span class="jk">ticker</span>, <span class="jk">weight</span>, <span class="jk">score</span>, <span class="jk">technical_score</span>, <span class="jk">label</span>, <span class="jk">explanation</span> }, … ],<br>
+          &nbsp;<span class="jk">"risk_level"</span>: <span class="jvs">"Medium"</span>, <span class="jk">"balance"</span>: <span class="jv">10000</span>, <span class="jk">"currency"</span>: <span class="jvs">"USD"</span>, <span class="jk">"build_mode"</span>: <span class="jv">true</span> }
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="cline"></div><div class="chead"></div><div class="clabel">JSON response payload</div></div>
+
+    <!-- STAGE 10 -->
+    <div class="stage s-fe">
+      <div class="sh">
+        <div class="snum">10</div>
+        <div class="stitle">Stage 10 — Frontend rendering</div>
+        <div class="sbadge"><i class="ti ti-layout" aria-hidden="true"></i>Static HTML · Chart.js · CSS</div>
+      </div>
+      <div class="sbody">
+        Three UI components rendered from the JSON payload:
+        <div class="rgrid">
+          <div class="ritem">
+            <span class="rti"><i class="ti ti-message-2" style="font-size:20px" aria-hidden="true"></i></span>
+            <div class="rtt">Chat bubble</div>
+            <div class="rtd">LLM narrative text rendered as a styled chat message</div>
+          </div>
+          <div class="ritem">
+            <span class="rti"><i class="ti ti-chart-donut" style="font-size:20px" aria-hidden="true"></i></span>
+            <div class="rtt">Donut chart</div>
+            <div class="rtd">Chart.js — portfolio allocation by ticker weight</div>
+          </div>
+          <div class="ritem">
+            <span class="rti"><i class="ti ti-chart-bar" style="font-size:20px" aria-hidden="true"></i></span>
+            <div class="rtt">Stock bars</div>
+            <div class="rtd">Per-ticker bars: weight · fundamental score · technical score</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -36,7 +36,9 @@ _HERE    = os.path.dirname(os.path.abspath(__file__))
 _ROOT    = os.path.dirname(_HERE)
 _BACKEND = os.path.join(_ROOT, "backend")
 
+# Load backend/.env first, fall back to project root .env
 load_dotenv(dotenv_path=os.path.join(_BACKEND, ".env"), override=True)
+load_dotenv(dotenv_path=os.path.join(_ROOT, ".env"), override=False)
 
 OPEN_ROUTER_KEY = os.getenv("OPEN_ROUTER_API_KEY", "")
 GCP_PROJECT     = os.getenv("GCP_PROJECT_ID", "pro-visitor-429015-f5")
@@ -78,6 +80,15 @@ log = logging.getLogger("tag_stocks")
 # ---------------------------------------------------------------------------
 
 def _bq_client() -> bigquery.Client:
+    import json as _json
+    sa_json = os.getenv("GCP_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        try:
+            info = _json.loads(sa_json)
+            creds = service_account.Credentials.from_service_account_info(info)
+            return bigquery.Client(credentials=creds, project=GCP_PROJECT, location=BQ_LOCATION)
+        except Exception:
+            pass  # malformed (e.g. truncated by dotenv multiline) — fall through to ADC
     sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if sa_path:
         creds = service_account.Credentials.from_service_account_file(sa_path)

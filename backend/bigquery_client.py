@@ -30,9 +30,21 @@ def get_bigquery_client() -> bigquery.Client:
     Build a BigQuery client.
 
     Resolution order:
-    1. GOOGLE_APPLICATION_CREDENTIALS env-var (path to a service-account JSON)
-    2. Application Default Credentials (``gcloud auth application-default login``)
+    1. GCP_SERVICE_ACCOUNT_JSON env-var (inline JSON string)
+    2. GOOGLE_APPLICATION_CREDENTIALS env-var (path to a service-account JSON file)
+    3. Application Default Credentials (gcloud auth application-default login)
     """
+    import json as _json
+    sa_json = os.getenv("GCP_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        try:
+            info = _json.loads(sa_json)
+            creds = service_account.Credentials.from_service_account_info(info)
+            logger.info("BigQuery: using inline GCP_SERVICE_ACCOUNT_JSON")
+            return bigquery.Client(credentials=creds, project=PROJECT_ID, location=BQ_LOCATION)
+        except Exception:
+            pass  # malformed (truncated by dotenv multiline) — fall through
+
     sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if sa_path:
         creds = service_account.Credentials.from_service_account_file(sa_path)
