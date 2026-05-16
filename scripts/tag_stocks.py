@@ -47,6 +47,7 @@ BQ_LOCATION     = os.getenv("BQ_LOCATION", "EU")
 
 TABLE_GRADES = f"{GCP_PROJECT}.{BQ_DATASET}.ticker_grades"
 TABLE_RISK   = f"{GCP_PROJECT}.{BQ_DATASET}.companies_risk_ratings"
+TABLE_PRICES = f"{GCP_PROJECT}.{BQ_DATASET}.daily_prices"
 
 # SEC EDGAR rate limit: 10 req/s. We stay well under it.
 SEC_USER_AGENT   = "RoboSmartInvest shvachko9768@gmail.com"
@@ -97,13 +98,13 @@ def _bq_client() -> bigquery.Client:
 
 
 def get_untagged_tickers(bq: bigquery.Client) -> list[str]:
-    """Tickers in companies_risk_ratings that have no row in ticker_grades."""
+    """Distinct tickers in daily_prices that have no row in ticker_grades."""
     query = f"""
-        SELECT rr.ticker
-        FROM   `{TABLE_RISK}` AS rr
-        LEFT JOIN `{TABLE_GRADES}` AS tg ON rr.ticker = tg.ticker
+        SELECT DISTINCT dp.ticker
+        FROM   `{TABLE_PRICES}` AS dp
+        LEFT JOIN `{TABLE_GRADES}` AS tg ON dp.ticker = tg.ticker
         WHERE  tg.ticker IS NULL
-        ORDER  BY rr.ticker
+        ORDER  BY dp.ticker
     """
     rows = list(bq.query(query, location=BQ_LOCATION).result())
     return [r.ticker for r in rows]
