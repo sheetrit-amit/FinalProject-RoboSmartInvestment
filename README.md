@@ -11,9 +11,10 @@
 
 1. **Understands your intent** — An LLM extracts your balance, currency, and risk tolerance from natural language.
 2. **Classifies risk** — Stocks in BigQuery are pre-labelled Low / Med-Low / Medium / Med-High / High using volatility-based quintiles.
-3. **Optimises the portfolio** — Markowitz mean-variance optimisation finds weights that maximise the Sharpe Ratio on the Efficient Frontier.
-4. **Adds fundamental context** — Pre-computed analyst scores are attached to each position.
-5. **Synthesises a recommendation** — A final LLM call writes a human-readable investment thesis for the basket.
+3. **Technical pre-filter** — Each candidate ticker is scored 0–100 using momentum and trend signals (EMA trend, MACD, RSI divergence, relative strength vs S&P 500, volume). Only tickers scoring ≥ 50 pass to the optimiser.
+4. **Optimises the portfolio** — Markowitz mean-variance optimisation finds weights that maximise the Sharpe Ratio on the Efficient Frontier.
+5. **Adds fundamental context** — Pre-computed analyst scores (from SEC 10-Q filings) are attached to each position.
+6. **Synthesises a recommendation** — A final LLM call writes a human-readable investment thesis for the basket.
 
 ---
 
@@ -21,15 +22,24 @@
 
 ```
 Browser (frontend/index.html)
-        │  POST /chat  { message }
+        │  POST /chat  { message, explicit_* params }
         ▼
 FastAPI Backend (backend/main.py)
-   ├─ ModelRouter          (OpenRouter free-tier, auto-rotates on 429)
-   ├─ BigQuery client       (ticker_grades, companies_risk_ratings, daily_prices)
-   └─ Markowitz optimizer   (SciPy SLSQP, max-Sharpe)
+   ├─ ModelRouter           (OpenRouter free-tier, auto-rotates on 429)
+   ├─ BigQuery client        (ticker_grades, companies_risk_ratings, daily_prices)
+   ├─ TechnicalScanner       (yfinance + custom indicators → 0-100 score per ticker)
+   └─ Markowitz optimizer    (SciPy SLSQP, max-Sharpe)
+
+Pipeline (build mode):
+  1. BQ → candidate tickers by risk label
+  2. TechnicalScanner → drop tickers scoring < 50, re-rank remainder
+  3. Markowitz → optimal weights on filtered set
+  4. BQ → fundamental scores (ticker_grades)
+  5. OpenRouter LLM → narrative synthesis
         │
         ▼
-Response  { text, portfolio[], risk_level, balance, currency, model_used }
+Response  { text, portfolio[], risk_level, balance, currency }
+  portfolio item: { ticker, weight, score, technical_score, label, explanation }
         │
         ▼
 Live donut chart + stock-allocation bars (Chart.js)
@@ -62,7 +72,7 @@ curl -X POST https://finalproject-robosmartinvestment.onrender.com/chat \
 
 ### Local Frontend Only
 
-Open `frontend/index.html` in your browser (double-click on Windows/macOS/Linux).
+Open `frontend/index.html` in your browser (double-click on Windows/macOS/Linux).  
 The current frontend config points to the hosted Render backend.
 
 ### Optional: Self-Host Backend
@@ -72,8 +82,107 @@ Only needed if you want to run your own backend instance.
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+python main.py
 ```
+
+Required `backend/.env`:
+```
+OPEN_ROUTER_API_KEY=sk-or-v1-...
+GCP_PROJECT_ID=pro-visitor-429015-f5
+BQ_DATASET=StockData
+BQ_LOCATION=EU
+```
+
+Google credentials: either set `GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json` or run `gcloud auth application-default login`.
+
+---
+
+## Testing the Technical Scanner
+
+The scanner runs automatically inside the build pipeline, but you can test it independently.
+
+### 1. Standalone scanner test (no backend needed)
+
+```bash
+cd scripts
+python test_scanner.py                          # scores AAPL MSFT NVDA TSLA JPM
+python test_scanner.py GOOGL META AMZN          # custom tickers
+```
+
+Expected output:
+```
+TEST 1 — Technical Scanner (standalone)
+Ticker    Score  Pass (≥50)
+--------------------------------
+AAPL         75  ✓ PASS
+MSFT         80  ✓ PASS
+NVDA         60  ✓ PASS
+TSLA         45  ✗ filtered
+JPM          55  ✓ PASS
+
+Tickers that would pass to Markowitz: 4/5
+```
+
+> Note: downloads 300 days of daily data via yfinance — allow ~3–5s per ticker.
+
+### 2. Full pipeline test (backend must be running)
+
+```bash
+# Terminal 1 — start backend
+cd backend && python main.py
+
+# Terminal 2 — run full test
+cd scripts
+python test_scanner.py --full
+python test_scanner.py --full --url http://localhost:8000
+```
+
+This sends a real build-mode `/chat` request and verifies `technical_score` appears in every portfolio position.
+
+### 3. Watch scanner logs during a live build
+
+When the backend is running, every build request prints scanner output:
+
+```
+INFO  Technical filter: 18 → 11 tickers    ← scanner dropped 7 weak tickers
+INFO  Running Markowitz on 11 assets …
+INFO  Optimal basket: 5 positions
+```
+
+Look for `Technical filter:` and `scan_tickers:` lines in the backend console.
+
+### 4. Quick REPL check
+
+```python
+# from project root
+import sys; sys.path.insert(0, 'backend')
+from technical_scanner import scan_tickers
+results = scan_tickers(['AAPL', 'MSFT', 'NVDA'], min_score=0)
+print(results)
+# [{'ticker': 'MSFT', 'technical_score': 80.0}, ...]
+```
+
+---
+
+## Data Tagging Script
+
+`scripts/tag_stocks.py` populates `ticker_grades` in BigQuery for any ticker not yet scored.  
+It mirrors the original n8n DataTaggingWF pipeline using free, no-key data sources.
+
+**Pipeline per ticker:**
+1. SEC EDGAR free API → CIK lookup → most-recent 10-Q filing HTML
+2. Strip HTML to clean natural-language text (same logic as the original n8n JS node)
+3. yfinance → latest quarterly income statement (revenue, gross profit, net income, EPS)
+4. OpenRouter LLM → `{"mark": 0-100, "explanation": "..."}` (same prompt as n8n AI Agent)
+5. BigQuery INSERT → `ticker_grades`
+
+```bash
+cd scripts
+python tag_stocks.py                  # auto: tags all untagged tickers in companies_risk_ratings
+python tag_stocks.py NFLX SPOT UBER   # tag specific tickers (ignores BQ check)
+```
+
+Requires `OPEN_ROUTER_API_KEY` in `backend/.env` and BigQuery credentials.
 
 ---
 
@@ -109,19 +218,28 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000
 FinalProject-RoboSmartInvestment/
 │
 ├── backend/
-│   ├── .env                  ← optional for self-hosting only (not committed)
-│   ├── main.py               # FastAPI orchestration pipeline
-│   ├── model_router.py       # OpenRouter model rotation on 429
-│   ├── markowitz.py          # Markowitz max-Sharpe optimiser
-│   ├── bigquery_client.py    # BigQuery helpers
-│   ├── seed_demo.py          # One-time data seeder (run once)
+│   ├── .env                    ← not committed; holds API keys
+│   ├── main.py                 # FastAPI orchestration pipeline
+│   ├── model_router.py         # OpenRouter model rotation on 429
+│   ├── markowitz.py            # Markowitz max-Sharpe optimiser
+│   ├── bigquery_client.py      # BigQuery helpers
+│   ├── technical_scanner.py    # yfinance momentum/trend scorer (0-100)
+│   ├── seed_demo.py            # One-time data seeder (run once)
 │   └── requirements.txt
 │
 ├── frontend/
-│   └── index.html            # Self-contained SPA — open directly in browser
+│   └── index.html              # Self-contained SPA — open directly in browser
+│
+├── scripts/
+│   ├── tag_stocks.py           # Populate ticker_grades (SEC EDGAR + yfinance + LLM)
+│   └── test_scanner.py         # Smoke-test the technical scanner integration
+│
+├── notebooks/
+│   ├── ScanerStock.ipynb       # Original stock scanner prototype (reference)
+│   └── Markov_LM_toy.ipynb     # N-gram language model experiment (reference)
 │
 ├── src/
-│   ├── data_retrieval/       # Extended ETL scripts (1,001-stock universe)
+│   ├── data_retrieval/         # Extended ETL scripts (1,001-stock universe)
 │   └── decision_tree/
 │       └── risk_classifier.py
 │
@@ -161,15 +279,26 @@ Current free-tier rotation order:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET`  | `/health` | Returns server status + active model |
-| `GET`  | `/models` | Lists all models + currently active one |
+| `GET`  | `/health` | Returns server status |
 | `POST` | `/chat`   | Main pipeline: message → portfolio response |
 
 ### POST /chat
 
-**Request:**
+**Request (conversational):**
 ```json
-{ "message": "I want to invest $10,000 with medium risk" }
+{ "message": "I want to invest $10,000 with medium risk", "session_id": "..." }
+```
+
+**Request (build mode — sent by UI button):**
+```json
+{
+  "message": "Build my portfolio",
+  "session_id": "...",
+  "explicit_budget":   10000,
+  "explicit_currency": "USD",
+  "explicit_risk":     "Medium",
+  "explicit_top_k":    5
+}
 ```
 
 **Response:**
@@ -177,12 +306,19 @@ Current free-tier rotation order:
 {
   "text": "Based on your medium-risk profile…",
   "portfolio": [
-    { "ticker": "AAPL", "weight": 0.18, "score": 84, "label": "Top Pick", "explanation": "…" }
+    {
+      "ticker": "AAPL",
+      "weight": 0.18,
+      "score": 84,
+      "technical_score": 75.0,
+      "label": "Top Pick",
+      "explanation": "Strong iPhone ecosystem…"
+    }
   ],
   "risk_level": "Medium",
   "balance": 10000,
   "currency": "USD",
-  "model_used": "openai/gpt-oss-120b:free"
+  "build_mode": true
 }
 ```
 
@@ -225,7 +361,8 @@ If the Pages URL still shows stale content, verify this workflow's `deploy` job 
 | Backend | Python 3.11+ · FastAPI · Uvicorn |
 | LLM | OpenRouter (free-tier, auto-rotation) |
 | Portfolio Optimisation | NumPy · SciPy SLSQP |
+| Technical Analysis | Custom indicators (EMA, RSI, MACD, BB, CMF, RS) via yfinance |
 | Data Storage | Google BigQuery (EU region) |
-| Data Source | Yahoo Finance (yfinance) |
+| Data Source | SEC EDGAR (free API) · Yahoo Finance (yfinance) |
 
 *For educational purposes only. Not financial advice.*

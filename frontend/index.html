@@ -22,21 +22,30 @@
 
     body {
       font-family: 'Inter', sans-serif;
-      background: #060d1a;
-      color: #dde6f5;
+      background: var(--bg-base);
+      color: var(--text-1);
       min-height: 100vh;
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
+      transition: background 220ms ease, color 220ms ease;
     }
 
     /* ──────────────────────────────────────────────────────────────
        DESIGN TOKENS
     ────────────────────────────────────────────────────────────── */
     :root {
+      color-scheme: dark;
       --bg-base:      #060d1a;
       --bg-surface:   #0b1527;
       --bg-elevated:  #101e35;
       --bg-glass:     rgba(11,21,39,0.82);
+      --bg-input:     #0b1527;
+      --bg-header:    rgba(6,13,26,0.75);
+      --bg-backdrop:  rgba(6,13,26,0.55);
+      --bg-chip:      rgba(255,255,255,0.04);
+      --bg-code:      rgba(255,255,255,0.07);
+      --bg-track:     rgba(255,255,255,0.05);
+      --bg-hover:     rgba(255,255,255,0.09);
 
       --blue:         #3b82f6;
       --blue-hover:   #60a5fa;
@@ -62,6 +71,56 @@
 
       --shadow:   0 8px 40px rgba(0,0,0,0.45);
       --glow:     0 0 48px rgba(59,130,246,0.14);
+
+      --chart-border: #0b1527;
+      --chart-tooltip-bg: #101e35;
+      --chart-tooltip-title: #e8f0ff;
+      --chart-tooltip-body: #8fa8cc;
+      --warning-bg: rgba(16,9,2,0.92);
+      --warning-text: #fbbf24;
+      --warning-muted: rgba(251,191,36,0.55);
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg-base:      #f4f7fb;
+      --bg-surface:   #ffffff;
+      --bg-elevated:  #eef4fb;
+      --bg-glass:     rgba(255,255,255,0.86);
+      --bg-input:     #ffffff;
+      --bg-header:    rgba(255,255,255,0.78);
+      --bg-backdrop:  rgba(15,23,42,0.18);
+      --bg-chip:      rgba(15,23,42,0.04);
+      --bg-code:      rgba(15,23,42,0.06);
+      --bg-track:     rgba(15,23,42,0.08);
+      --bg-hover:     rgba(15,23,42,0.07);
+
+      --blue:         #2563eb;
+      --blue-hover:   #1d4ed8;
+      --blue-glow:    rgba(37,99,235,0.18);
+      --cyan:         #0891b2;
+      --green:        #059669;
+      --red:          #e11d48;
+      --amber:        #d97706;
+      --purple:       #7c3aed;
+
+      --text-1:       #102033;
+      --text-2:       #52657d;
+      --text-3:       #7b8da5;
+
+      --border:       rgba(37,99,235,0.14);
+      --border-hi:    rgba(37,99,235,0.32);
+
+      --shadow:   0 12px 34px rgba(15,23,42,0.10);
+      --glow:     0 14px 34px rgba(37,99,235,0.13);
+
+      --chart-border: #ffffff;
+      --chart-tooltip-bg: #ffffff;
+      --chart-tooltip-title: #102033;
+      --chart-tooltip-body: #52657d;
+      --warning-bg: rgba(255,251,235,0.94);
+      --warning-text: #92400e;
+      --warning-muted: rgba(146,64,14,0.68);
     }
 
     /* ──────────────────────────────────────────────────────────────
@@ -69,8 +128,8 @@
     ────────────────────────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+    ::-webkit-scrollbar-thumb { background: var(--bg-track); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
 
     /* ──────────────────────────────────────────────────────────────
        HEADER
@@ -84,7 +143,7 @@
       justify-content: space-between;
       padding: 0 32px;
       height: 64px;
-      background: rgba(6,13,26,0.75);
+      background: var(--bg-header);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       border-bottom: 1px solid var(--border);
@@ -120,6 +179,12 @@
       gap: 28px;
     }
 
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .header-nav a {
       font-size: 13px;
       font-weight: 500;
@@ -145,6 +210,42 @@
       transform: translateY(-1px);
       box-shadow: 0 4px 16px var(--blue-glow);
     }
+
+    .theme-toggle {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      background: var(--bg-chip);
+      color: var(--text-2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 180ms, border-color 180ms, color 180ms, transform 150ms;
+    }
+
+    .theme-toggle:hover {
+      background: rgba(59,130,246,0.08);
+      border-color: var(--border-hi);
+      color: var(--text-1);
+      transform: translateY(-1px);
+    }
+
+    .theme-toggle:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+
+    .theme-toggle svg {
+      width: 18px;
+      height: 18px;
+      transition: transform 220ms ease, opacity 220ms ease;
+    }
+
+    .theme-toggle .moon-icon { display: none; }
+    :root[data-theme="light"] .theme-toggle .sun-icon { display: none; }
+    :root[data-theme="light"] .theme-toggle .moon-icon { display: block; }
 
     /* ──────────────────────────────────────────────────────────────
        HERO
@@ -179,6 +280,18 @@
       animation: orb-drift 12s ease-in-out infinite;
     }
 
+    :root[data-theme="light"] .orb-1 {
+      background: radial-gradient(circle, rgba(37,99,235,0.14) 0%, transparent 70%);
+    }
+
+    :root[data-theme="light"] .orb-2 {
+      background: radial-gradient(circle, rgba(8,145,178,0.12) 0%, transparent 70%);
+    }
+
+    :root[data-theme="light"] .orb-3 {
+      background: radial-gradient(circle, rgba(5,150,105,0.10) 0%, transparent 70%);
+    }
+
     .orb-2 {
       width: 480px; height: 480px;
       background: radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%);
@@ -210,6 +323,12 @@
       background-size: 52px 52px;
       animation: grid-shift 25s linear infinite;
       will-change: transform;
+    }
+
+    :root[data-theme="light"] .grid-overlay {
+      background-image:
+        linear-gradient(rgba(37,99,235,0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37,99,235,0.055) 1px, transparent 1px);
     }
 
     @keyframes grid-shift {
@@ -445,8 +564,17 @@
 
     .how-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 20px;
+    }
+
+    @media (max-width: 1100px) {
+      .how-grid { grid-template-columns: repeat(2, 1fr); }
+      .how-card { padding: 32px; }
+    }
+
+    @media (min-width: 1101px) {
+      .how-card { padding: 26px 24px; }
     }
 
     .how-card {
@@ -575,7 +703,7 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
       color: var(--text-3);
-      background: rgba(255,255,255,0.04);
+      background: var(--bg-chip);
       border: 1px solid var(--border);
       padding: 3px 9px;
       border-radius: 100px;
@@ -640,7 +768,7 @@
     .bubble code {
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
-      background: rgba(255,255,255,0.07);
+      background: var(--bg-code);
       padding: 1px 5px;
       border-radius: 4px;
     }
@@ -733,7 +861,7 @@
 
     .chat-form textarea {
       flex: 1;
-      background: var(--bg-surface);
+      background: var(--bg-input);
       border: 1px solid var(--border);
       border-radius: var(--r-md);
       padding: 11px 14px;
@@ -959,7 +1087,7 @@
 
     .s-bar-wrap {
       height: 3px;
-      background: rgba(255,255,255,0.05);
+      background: var(--bg-track);
       border-radius: 2px;
       overflow: hidden;
     }
@@ -991,7 +1119,7 @@
     .s-label.stat-hold  { background: rgba(245,158,11,0.12); color: var(--amber); }
     .s-label.growth-opp { background: rgba(139,92,246,0.12); color: var(--purple); }
     .s-label.balanced   { background: rgba(59,130,246,0.08); color: var(--blue-hover); }
-    .s-label.quant      { background: rgba(255,255,255,0.05); color: var(--text-2); }
+    .s-label.quant      { background: var(--bg-track); color: var(--text-2); }
 
     /* ──────────────────────────────────────────────────────────────
        FOOTER
@@ -1046,6 +1174,7 @@
       .stat-divider { display: none; }
       .section-how, .section-chat { padding-left: 16px; padding-right: 16px; }
       .footer { flex-direction: column; align-items: flex-start; }
+      .how-grid { grid-template-columns: 1fr; }
     }
 
     /* ──────────────────────────────────────────────────────────────
@@ -1135,7 +1264,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: rgba(6,13,26,0.55);
+      background: var(--bg-backdrop);
       backdrop-filter: blur(2px);
       opacity: 0;
       transition: opacity 280ms ease;
@@ -1165,7 +1294,7 @@
 
     .pd-close {
       width: 26px; height: 26px;
-      background: rgba(255,255,255,0.04);
+      background: var(--bg-chip);
       border: 1px solid var(--border);
       border-radius: 6px;
       color: var(--text-3);
@@ -1176,7 +1305,7 @@
       transition: background 160ms, color 160ms;
       padding: 0;
     }
-    .pd-close:hover { background: rgba(255,255,255,0.09); color: var(--text-1); }
+    .pd-close:hover { background: var(--bg-hover); color: var(--text-1); }
 
     .pd-body {
       display: flex;
@@ -1247,7 +1376,7 @@
 
     .param-budget-row input[type=number] {
       flex: 1;
-      background: var(--bg-elevated);
+      background: var(--bg-input);
       border: 1px solid var(--border);
       border-radius: var(--r-sm);
       padding: 7px 10px;
@@ -1501,7 +1630,7 @@
       align-items: center;
       gap: 14px;
       padding: 11px 28px;
-      background: rgba(16,9,2,0.92);
+      background: var(--warning-bg);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       border-bottom: 1px solid rgba(245,158,11,0.28);
@@ -1553,14 +1682,14 @@
     .ob-title {
       font-size: 13px;
       font-weight: 700;
-      color: #fbbf24;
+      color: var(--warning-text);
       white-space: nowrap;
       letter-spacing: 0.01em;
     }
 
     .ob-sub {
       font-size: 12px;
-      color: rgba(251,191,36,0.55);
+      color: var(--warning-muted);
       line-height: 1.4;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1657,11 +1786,22 @@
       <span class="logo-wordmark">Robo<em>Smart</em>Invest</span>
     </a>
 
-    <nav class="header-nav" aria-label="Primary">
-      <a href="#how-it-works">How It Works</a>
-      <a href="#chat">Portfolio Builder</a>
-      <a href="#chat" class="header-cta">Build Portfolio →</a>
-    </nav>
+    <div class="header-controls">
+      <nav class="header-nav" aria-label="Primary">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#chat">Portfolio Builder</a>
+        <a href="#chat" class="header-cta">Build Portfolio →</a>
+      </nav>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light mode" title="Switch theme">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.2 14.7A8.1 8.1 0 0 1 9.3 3.8 8.2 8.2 0 1 0 20.2 14.7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
   </header>
 
   <!-- ─── HERO ────────────────────────────────────────────────── -->
@@ -1732,7 +1872,7 @@
   <!-- ─── HOW IT WORKS ─────────────────────────────────────────── -->
   <section class="section-how" id="how-it-works" aria-labelledby="how-title">
     <div class="section-eyebrow">The System</div>
-    <h2 class="section-title" id="how-title">Three layers of intelligence</h2>
+    <h2 class="section-title" id="how-title">Four layers of intelligence</h2>
 
     <div class="how-grid">
       <div class="how-card" data-delay="0">
@@ -1753,18 +1893,32 @@
         <div class="card-step">Step 02</div>
         <div class="card-icon-box" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <polyline points="2,16 5,10 9,13 13,7 17,9 20,4"
+              stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="2" y1="19" x2="20" y2="19" stroke="#f59e0b" stroke-width="1.2" opacity=".4"/>
+          </svg>
+        </div>
+        <h3>Technical Scanner</h3>
+        <p>Each candidate stock is scored 0–100 using six months of live price data. Signals include EMA trend alignment, MACD momentum, RSI divergence, relative strength vs the S&P 500, and institutional volume patterns. Only technically sound stocks pass to the next step.</p>
+        <span class="tag">Momentum · Trend · yfinance</span>
+      </div>
+
+      <div class="how-card" data-delay="200">
+        <div class="card-step">Step 03</div>
+        <div class="card-icon-box" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
             <polyline points="2,18 7,10 11,13 15,6 20,3"
               stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             <circle cx="20" cy="3" r="2" fill="#10b981"/>
           </svg>
         </div>
         <h3>Markowitz Optimisation</h3>
-        <p>Stocks matching your risk level enter a mean-variance optimiser. It scans the Efficient Frontier and returns the portfolio with the maximum Sharpe Ratio — the best risk-adjusted return maths can find.</p>
+        <p>Stocks that pass the technical filter enter a mean-variance optimiser. It scans the Efficient Frontier and returns the portfolio with the maximum Sharpe Ratio — the best risk-adjusted return maths can find.</p>
         <span class="tag">Modern Portfolio Theory · SciPy</span>
       </div>
 
-      <div class="how-card" data-delay="200">
-        <div class="card-step">Step 03</div>
+      <div class="how-card" data-delay="300">
+        <div class="card-step">Step 04</div>
         <div class="card-icon-box" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
             <rect x="3" y="3" width="6" height="6" rx="2" stroke="#8b5cf6" stroke-width="1.8"/>
@@ -1774,7 +1928,7 @@
           </svg>
         </div>
         <h3>AI Synthesis</h3>
-        <p>LLM-generated fundamental scores from quarterly SEC filings are merged with the Markowitz weights. A final AI model produces a human-readable investment thesis for every position in the basket.</p>
+        <p>LLM-generated fundamental scores from quarterly SEC filings are merged with the Markowitz weights and technical scores. A final AI model produces a human-readable investment thesis for every position in the basket.</p>
         <span class="tag">LLM · SEC Filings · Markowitz</span>
       </div>
     </div>
@@ -1917,9 +2071,9 @@
             </div>
             <p>Your portfolio chart will appear here after you send your first message.</p>
             <div class="hint-examples" aria-label="Example prompts">
-              <button class="hint-example" data-prompt="Invest $5,000 with medium risk">💬 "$5,000 with medium risk"</button>
-              <button class="hint-example" data-prompt="Build a low-risk portfolio for $20,000">💬 "Low-risk, $20,000"</button>
-              <button class="hint-example" data-prompt="High risk portfolio, I have $2,500 to invest">💬 "High risk, $2,500"</button>
+              <button class="hint-example" data-prompt="$10,000 medium risk, give me 5 stocks">💬 "$10,000 medium risk, 5 stocks"</button>
+              <button class="hint-example" data-prompt="Low-risk $50,000, top 3 picks only">💬 "Low-risk, $50,000, top 3 picks"</button>
+              <button class="hint-example" data-prompt="High risk $5,000, pick 6 stocks for me">💬 "High risk, $5,000, 6 stocks"</button>
             </div>
           </div>
 
@@ -1986,6 +2140,51 @@
       '#6366f1','#84cc16','#fb923c','#38bdf8',
     ];
 
+    // ── Theme ──────────────────────────────────────────────────────────────
+    const THEME_KEY = 'rsiv2_theme';
+    const root = document.documentElement;
+    const themeToggle = document.getElementById('theme-toggle');
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    const initialTheme = savedTheme === 'light' ? 'light' : 'dark';
+    let donutChart = null;
+
+    function setTheme(theme) {
+      root.dataset.theme = theme;
+      localStorage.setItem(THEME_KEY, theme);
+      themeToggle?.setAttribute(
+        'aria-label',
+        theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'
+      );
+      themeToggle?.setAttribute(
+        'title',
+        theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'
+      );
+      refreshChartTheme();
+    }
+
+    function cssVar(name) {
+      return getComputedStyle(root).getPropertyValue(name).trim();
+    }
+
+    function refreshChartTheme() {
+      if (!donutChart) return;
+      donutChart.data.datasets.forEach(dataset => {
+        dataset.borderColor = cssVar('--chart-border');
+        dataset.hoverBorderColor = cssVar('--bg-base') || '#fff';
+      });
+      donutChart.options.plugins.legend.labels.color = cssVar('--text-2');
+      donutChart.options.plugins.tooltip.backgroundColor = cssVar('--chart-tooltip-bg');
+      donutChart.options.plugins.tooltip.borderColor = cssVar('--border-hi');
+      donutChart.options.plugins.tooltip.titleColor = cssVar('--chart-tooltip-title');
+      donutChart.options.plugins.tooltip.bodyColor = cssVar('--chart-tooltip-body');
+      donutChart.update('none');
+    }
+
+    setTheme(initialTheme);
+    themeToggle?.addEventListener('click', () => {
+      setTheme(root.dataset.theme === 'light' ? 'dark' : 'light');
+    });
+
     // ── Session ID (sessionStorage = per-tab, cleared on new tab/window) ──
     let sessionId = sessionStorage.getItem('rsiv2_session');
     if (!sessionId) {
@@ -2027,8 +2226,6 @@
     const buildCtaWrap    = document.getElementById('build-cta-wrap');
     const buildCtaBtn     = document.getElementById('build-cta-btn');
     const ctaParamsSummary = document.getElementById('cta-params-summary');
-
-    let donutChart = null;
 
     // ── Overload banner ────────────────────────────────────────────────────
     const overloadBanner = document.getElementById('overload-banner');
@@ -2302,9 +2499,9 @@
             data: portfolio.map(p => +(p.weight * 100).toFixed(2)),
             backgroundColor: CHART_COLORS.slice(0, portfolio.length),
             borderWidth: 2,
-            borderColor: '#0b1527',
+            borderColor: cssVar('--chart-border'),
             hoverBorderWidth: 3,
-            hoverBorderColor: '#fff',
+            hoverBorderColor: cssVar('--bg-base') || '#fff',
           }],
         },
         options: {
@@ -2315,7 +2512,7 @@
             legend: {
               position: 'bottom',
               labels: {
-                color: '#8fa8cc',
+                color: cssVar('--text-2'),
                 font: { family: 'Inter', size: 10 },
                 padding: 10,
                 boxWidth: 9,
@@ -2323,11 +2520,11 @@
               },
             },
             tooltip: {
-              backgroundColor: '#101e35',
-              borderColor: 'rgba(59,130,246,0.3)',
+              backgroundColor: cssVar('--chart-tooltip-bg'),
+              borderColor: cssVar('--border-hi'),
               borderWidth: 1,
-              titleColor: '#e8f0ff',
-              bodyColor: '#8fa8cc',
+              titleColor: cssVar('--chart-tooltip-title'),
+              bodyColor: cssVar('--chart-tooltip-body'),
               padding: 10,
               callbacks: {
                 label: ctx => ` ${ctx.parsed.toFixed(1)}%`,

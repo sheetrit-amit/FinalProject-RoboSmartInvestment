@@ -29,6 +29,7 @@ from bigquery_client import (
 )
 from markowitz import run_markowitz
 from model_router import ModelRouter
+from technical_scanner import scan_tickers
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -125,11 +126,15 @@ Weights maximising Sharpe ratio. High weight ≠ low risk — it means best risk
 DATA SOURCE 2 — Fundamental Scores (0-100):
 LLM-generated scores from recent 10-K/10-Q filings.
 
+DATA SOURCE 3 — Technical Scores (0-100):
+Momentum/trend scoring: EMA trend, MACD, RSI divergence, relative strength vs S&P 500,
+volume signals, VCP squeeze. Stocks below 50 were pre-filtered out.
+
 LABELLING:
-- weight >15% AND score ≥70  → "Top Pick"
-- weight >15% AND score <50  → "Statistical Hold"
-- weight ≤15% AND score ≥70  → "Growth Opportunity"
-- otherwise                  → "Balanced Position"
+- weight >15% AND fund_score ≥70  → "Top Pick"
+- weight >15% AND fund_score <50  → "Statistical Hold"
+- weight ≤15% AND fund_score ≥70  → "Growth Opportunity"
+- otherwise                       → "Balanced Position"
 
 WRITING RULES:
 - 6-10 sentences, paragraph style (no bullet points)
@@ -301,6 +306,16 @@ def chat(body: ChatRequest, http_response: Response):
         raise HTTPException(status_code=404,
             detail=f"No tickers for risk level '{risk}'. Ensure the DB is seeded.")
 
+    # 1b. Technical pre-filter (yfinance-based scoring)
+    tech_map: Dict[str, float] = {}
+    tech_results = scan_tickers(tickers)
+    if tech_results:
+        # Use technically-screened ordering; fall back to full list if scan returned nothing
+        filtered_tickers = [r["ticker"] for r in tech_results]
+        tech_map = {r["ticker"]: r["technical_score"] for r in tech_results}
+        logger.info("Technical filter: %d → %d tickers", len(tickers), len(filtered_tickers))
+        tickers = filtered_tickers if filtered_tickers else tickers
+
     # 2. Markowitz + top-k
     try:
         weights = run_markowitz(tickers, bq)
@@ -322,22 +337,28 @@ def chat(body: ChatRequest, http_response: Response):
         f     = fund_map.get(w["ticker"], {})
         score = f.get("mark")
         portfolio.append({
-            "ticker":      w["ticker"],
-            "weight":      w["weight"],
-            "score":       score,
-            "explanation": f.get("explanation"),
-            "label":       _label(w["weight"], score),
+            "ticker":          w["ticker"],
+            "weight":          w["weight"],
+            "score":           score,
+            "technical_score": tech_map.get(w["ticker"]),
+            "explanation":     f.get("explanation"),
+            "label":           _label(w["weight"], score),
         })
 
     # 4. LLM synthesis
     markowitz_text = "\n".join(f"{w['ticker']}: {w['weight']*100:.2f}%" for w in weights)
     fund_text      = _build_fund_text(fundamentals)
+    tech_text = "\n".join(
+        f"{p['ticker']}: {p['technical_score']}/100" if p['technical_score'] is not None else f"{p['ticker']}: N/A"
+        for p in portfolio
+    )
     delivered = len(weights)
     user_ctx = (
         f"User profile — Risk: {risk}, Stocks requested: {top_k}, Stocks delivered: {delivered}"
         + (f", Amount: {balance:,.0f} {currency}" if balance else "")
         + f"\n\nMarkowitz weights:\n{markowitz_text}"
         + f"\n\nFundamental scores:\n{fund_text}"
+        + f"\n\nTechnical scores (momentum/trend):\n{tech_text}"
     )
 
     try:

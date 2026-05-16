@@ -9,7 +9,8 @@
       "Bash(bq.cmd query *)",
       "Bash(gcloud.cmd auth *)",
       "Bash(python -c \"import fastapi, uvicorn, google.cloud.bigquery, dotenv\")",
-      "Bash(python scripts/search.py \"fintech investment robo-advisor dashboard status banner notification\" --design-system -p \"RoboSmartInvestment\")"
+      "Bash(python scripts/search.py \"fintech investment robo-advisor dashboard status banner notification\" --design-system -p \"RoboSmartInvestment\")",
+      "Bash(Select-String \"title|h1|h2|description|RoboSmart\")"
     ]
   }
 }
