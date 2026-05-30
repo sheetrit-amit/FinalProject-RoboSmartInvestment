@@ -8,6 +8,7 @@ Two-mode /chat endpoint:
 
 import logging
 import os
+import threading
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -23,7 +24,6 @@ load_dotenv(dotenv_path=os.path.join(_here, "..", ".env"))
 
 from bigquery_client import (
     get_bigquery_client,
-    get_bq_context,
     get_fundamental_scores,
     get_tickers_by_risk,
 )
@@ -62,6 +62,46 @@ else:
     logger.info("API key loaded: %s… (len=%d)", _api_key[:12], len(_api_key))
 
 router = ModelRouter(api_key=_api_key)
+
+# ---------------------------------------------------------------------------
+# BigQuery client singleton (one connection pool for the process lifetime)
+# ---------------------------------------------------------------------------
+_bq_client = None
+_bq_lock = threading.Lock()
+
+
+def _get_bq() -> Any:
+    global _bq_client
+    if _bq_client is None:
+        with _bq_lock:
+            if _bq_client is None:
+                _bq_client = get_bigquery_client()
+    return _bq_client
+
+
+# ---------------------------------------------------------------------------
+# Technical scan cache — TTL-keyed by risk level
+# Prevents O(N_users) redundant yfinance downloads for the same risk bucket.
+# ---------------------------------------------------------------------------
+_scan_cache: Dict[str, Any] = {}
+_scan_cache_lock = threading.Lock()
+_SCAN_TTL = timedelta(minutes=30)
+
+
+def _cached_scan(risk: str, tickers: List[str]) -> List[Dict[str, Any]]:
+    with _scan_cache_lock:
+        if risk in _scan_cache:
+            ts, cached = _scan_cache[risk]
+            if datetime.utcnow() - ts < _SCAN_TTL:
+                logger.info("Technical scan cache HIT for risk=%s (%d tickers)", risk, len(cached))
+                return cached
+
+    results = scan_tickers(tickers)
+
+    with _scan_cache_lock:
+        _scan_cache[risk] = (datetime.utcnow(), results)
+    return results
+
 
 # ---------------------------------------------------------------------------
 # Session store
@@ -225,7 +265,7 @@ def new_session():
 @app.post("/chat", response_model=ChatResponse)
 def chat(body: ChatRequest, http_response: Response):
     logger.info("→ /chat  session=%s  message=%r", body.session_id, body.message[:80])
-    router.was_exhausted = False
+    router.was_exhausted = False  # reset per-thread flag for this request
 
     session       = _get_session(body.session_id) if body.session_id else {"messages": []}
     recent_history = session["messages"][-_MAX_HISTORY:]
@@ -285,19 +325,9 @@ def chat(body: ChatRequest, http_response: Response):
     risk     = body.explicit_risk if body.explicit_risk in _VALID_RISKS else "Medium"
     top_k    = max(1, min(body.explicit_top_k or 5, _MAX_TOP_K))
 
-    # 0. BQ context probe
-    try:
-        bq     = get_bigquery_client()
-        bq_ctx = get_bq_context(bq)
-    except Exception as exc:
-        logger.warning("BQ context probe failed: %s", exc)
-        bq     = None
-        bq_ctx = {}
-
     # 1. Fetch tickers
     try:
-        if bq is None:
-            bq = get_bigquery_client()
+        bq = _get_bq()
         tickers = get_tickers_by_risk(risk, bq)
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Database unavailable: {exc}")
@@ -306,9 +336,9 @@ def chat(body: ChatRequest, http_response: Response):
         raise HTTPException(status_code=404,
             detail=f"No tickers for risk level '{risk}'. Ensure the DB is seeded.")
 
-    # 1b. Technical pre-filter (yfinance-based scoring)
+    # 1b. Technical pre-filter (yfinance-based scoring, cached 30 min per risk level)
     tech_map: Dict[str, float] = {}
-    tech_results = scan_tickers(tickers)
+    tech_results = _cached_scan(risk, tickers)
     if tech_results:
         # Use technically-screened ordering; fall back to full list if scan returned nothing
         filtered_tickers = [r["ticker"] for r in tech_results]
@@ -318,7 +348,7 @@ def chat(body: ChatRequest, http_response: Response):
 
     # 2. Markowitz + top-k
     try:
-        weights = run_markowitz(tickers, bq)
+        weights = run_markowitz(tickers, _get_bq())
         weights = _renormalize(weights[:top_k])
         logger.info("Markowitz → %d positions", len(weights))
     except Exception as exc:
@@ -327,7 +357,7 @@ def chat(body: ChatRequest, http_response: Response):
     # 3. Fundamental scores
     opt_tickers = [w["ticker"] for w in weights]
     try:
-        fundamentals = get_fundamental_scores(opt_tickers, bq)
+        fundamentals = get_fundamental_scores(opt_tickers, _get_bq())
     except Exception:
         fundamentals = []
 

@@ -5,6 +5,7 @@ Automatically cycles through free models when a rate-limit (429) is hit.
 
 import json
 import logging
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -50,7 +51,8 @@ class ModelRouter:
         self.api_key = api_key
         self._failed: set[int] = set()
         self._idx = 0
-        self.was_exhausted: bool = False  # set True when all models hit 429 in one request
+        self._lock = threading.Lock()   # protects _idx and _failed across threads
+        self._tls = threading.local()   # per-request state (was_exhausted)
         if preferred_model and preferred_model in self.FREE_MODELS:
             self._idx = self.FREE_MODELS.index(preferred_model)
 
@@ -60,10 +62,20 @@ class ModelRouter:
 
     @property
     def current_model(self) -> str:
-        return self.FREE_MODELS[self._idx]
+        with self._lock:
+            return self.FREE_MODELS[self._idx]
+
+    # was_exhausted is per-thread so concurrent requests don't clobber each other
+    @property
+    def was_exhausted(self) -> bool:
+        return getattr(self._tls, "exhausted", False)
+
+    @was_exhausted.setter
+    def was_exhausted(self, value: bool) -> None:
+        self._tls.exhausted = value
 
     def reset_failures(self) -> None:
-        """Clear the failed-model set (e.g. after a cooldown period)."""
+        """Clear the failed-model set (e.g. after a cooldown period). Caller must hold _lock."""
         self._failed.clear()
 
     def chat(
@@ -81,7 +93,8 @@ class ModelRouter:
         last_err: Optional[Exception] = None
 
         for _ in range(retries):
-            model = self.current_model
+            with self._lock:
+                model = self.FREE_MODELS[self._idx]
             try:
                 resp = requests.post(
                     self.BASE_URL,
@@ -97,11 +110,14 @@ class ModelRouter:
 
                 if resp.status_code == 429:
                     logger.warning("Rate-limit on %s — rotating model.", model)
-                    if not self._rotate():
+                    with self._lock:
+                        rotated = self._rotate()
+                    if not rotated:
                         logger.info("All models exhausted — waiting 8 s then resetting.")
                         self.was_exhausted = True
                         time.sleep(8)
-                        self.reset_failures()
+                        with self._lock:
+                            self.reset_failures()
                     continue
 
                 resp.raise_for_status()
@@ -111,9 +127,12 @@ class ModelRouter:
             except requests.RequestException as exc:
                 last_err = exc
                 logger.error("Request error on %s: %s", model, exc)
-                if not self._rotate():
+                with self._lock:
+                    rotated = self._rotate()
+                if not rotated:
                     time.sleep(3)
-                    self.reset_failures()
+                    with self._lock:
+                        self.reset_failures()
 
         raise RuntimeError(
             f"All model-rotation attempts failed. Last error: {last_err}"
@@ -151,11 +170,11 @@ class ModelRouter:
         }
 
     def _rotate(self) -> bool:
-        """Advance to the next non-failed model.  Returns False when exhausted."""
+        """Advance to the next non-failed model. Returns False when exhausted. Caller must hold _lock."""
         self._failed.add(self._idx)
         for i in range(len(self.FREE_MODELS)):
             if i not in self._failed:
                 self._idx = i
-                logger.info("Switched to model: %s", self.current_model)
+                logger.info("Switched to model: %s", self.FREE_MODELS[self._idx])
                 return True
         return False

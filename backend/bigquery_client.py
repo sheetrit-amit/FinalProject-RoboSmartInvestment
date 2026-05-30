@@ -95,14 +95,17 @@ def get_fundamental_scores(
     if not tickers:
         return []
 
-    # Build SQL IN clause safely (tickers are uppercase stock symbols)
-    in_clause = "(" + ", ".join(f"'{t}'" for t in tickers) + ")"
+    job_cfg = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ArrayQueryParameter("tickers", "STRING", tickers)
+        ]
+    )
     query = f"""
         SELECT ticker, mark, explanation
         FROM `{_TICKER_GRADES}`
-        WHERE ticker IN {in_clause}
+        WHERE ticker IN UNNEST(@tickers)
     """
-    rows = client.query(query).result()
+    rows = client.query(query, job_config=job_cfg).result()
     return [
         {
             "ticker": row.ticker,

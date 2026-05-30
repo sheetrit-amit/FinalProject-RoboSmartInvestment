@@ -2567,12 +2567,17 @@
       addBubble(msg, 'user');
       showTyping();
 
+      const controller = new AbortController();
+      // Portfolio builds can take up to 3 minutes; abort cleanly if the server hangs.
+      const timeoutId = setTimeout(() => controller.abort(), 240000);
+
       try {
         const body = { message: msg, session_id: sessionId, ...explicitParams };
         const res = await fetch(`${BACKEND}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
+          signal: controller.signal,
         });
 
         if (res.headers.get('X-Overloaded') === 'true') showOverloadBanner();
@@ -2592,12 +2597,12 @@
       } catch (err) {
         hideTyping();
         hideOverloadBanner();
-        addBubble(
-          `Could not connect to the backend (${err.message}).\n\n` +
-          'Make sure the FastAPI server is running:\n`cd backend && python main.py`',
-          'error'
-        );
+        const msg = err.name === 'AbortError'
+          ? 'The request timed out — the server is under heavy load. Please try again in a moment.'
+          : `Something went wrong: ${err.message}. Please try again.`;
+        addBubble(msg, 'error');
       } finally {
+        clearTimeout(timeoutId);
         sendBtn.disabled = false;
         sendBtn.removeAttribute('aria-busy');
         textarea.focus();
