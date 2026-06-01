@@ -131,7 +131,12 @@ def _get_session(session_id: str) -> dict:
     with _sessions_lock:
         _purge_expired_sessions(now)
         if session_id not in _sessions:
-            _sessions[session_id] = {"messages": [], "ts": now}
+            _sessions[session_id] = {
+                "messages": [],
+                "ts": now,
+                "portfolio_built": False,
+                "post_build_count": 0,
+            }
         else:
             _sessions[session_id]["ts"] = now
         return _sessions[session_id]
@@ -158,6 +163,27 @@ Rules:
   by the system when the button is pressed.
 - If the user asks something unrelated to investing, gently redirect.
 """
+
+DISCUSSION_SYSTEM = """You are a friendly AI investment advisor for RoboSmartInvest.
+
+A portfolio has already been built for this user in the current conversation.
+Your role is to discuss and explain the portfolio based on what appears in the conversation history.
+
+Rules:
+- Be concise (3–5 sentences). Reference the actual tickers, weights, and scores from the history.
+- Explain decisions using Markowitz (Sharpe ratio optimisation), fundamental scores, and technical scores.
+- If asked to build a new portfolio, tell the user to update the parameters in the drawer and click "Build My Portfolio" again.
+- Do NOT invent data not present in the conversation history.
+- Do NOT ask for budget/risk/stock count again — those were already collected.
+- Do not promise future returns or give specific buy/sell advice.
+"""
+
+_POST_BUILD_LIMIT = 5
+_POST_BUILD_LIMIT_MSG = (
+    "You've reached the 5-message post-portfolio limit for this session. "
+    "To continue exploring, please refresh the page to start a new session, "
+    "or click \"Build My Portfolio\" again to generate a new portfolio."
+)
 
 EXTRACT_SYSTEM = (
     "You are a financial-intent parser. "
@@ -291,43 +317,57 @@ def chat(body: ChatRequest, http_response: Response):
     logger.info("→ /chat  session=%s  message=%r", body.session_id, body.message[:80])
     router.was_exhausted = False  # reset per-thread flag for this request
 
-    session       = _get_session(body.session_id) if body.session_id else {"messages": []}
+    session       = _get_session(body.session_id) if body.session_id else {
+        "messages": [], "portfolio_built": False, "post_build_count": 0
+    }
     recent_history = session["messages"][-_MAX_HISTORY:]
 
     build_mode = (body.explicit_risk is not None and body.explicit_top_k is not None)
 
     # ── CONVERSATIONAL MODE ──────────────────────────────────────────────────
     if not build_mode:
-        # Step A: extract any params mentioned in the message
-        try:
-            intent = router.chat_json(
-                [
-                    {"role": "system", "content": EXTRACT_SYSTEM},
-                    {"role": "user",   "content": body.message},
-                ],
-                temperature=0.05,
-                max_tokens=120,
-            )
-        except Exception:
-            intent = {}
+        portfolio_built = session.get("portfolio_built", False)
 
-        params_detected = {
-            "balance":  intent.get("balance"),
-            "currency": intent.get("currency"),
-            "risk":     intent.get("risk") if intent.get("risk") in _VALID_RISKS else None,
-            "top_k":    int(intent["top_k"]) if intent.get("top_k") else None,
-        }
+        # Enforce post-build message limit
+        if portfolio_built:
+            count = session.get("post_build_count", 0)
+            if count >= _POST_BUILD_LIMIT:
+                return ChatResponse(text=_POST_BUILD_LIMIT_MSG, build_mode=False)
+            session["post_build_count"] = count + 1
 
-        # Step B: conversational reply
+        # Step A: extract params only when no portfolio has been built yet
+        params_detected: Dict[str, Any] = {}
+        if not portfolio_built:
+            try:
+                intent = router.chat_json(
+                    [
+                        {"role": "system", "content": EXTRACT_SYSTEM},
+                        {"role": "user",   "content": body.message},
+                    ],
+                    temperature=0.05,
+                    max_tokens=120,
+                )
+            except Exception:
+                intent = {}
+
+            params_detected = {
+                "balance":  intent.get("balance"),
+                "currency": intent.get("currency"),
+                "risk":     intent.get("risk") if intent.get("risk") in _VALID_RISKS else None,
+                "top_k":    int(intent["top_k"]) if intent.get("top_k") else None,
+            }
+
+        # Step B: conversational reply — use discussion mode when portfolio already exists
+        system_prompt = DISCUSSION_SYSTEM if portfolio_built else ADVISOR_SYSTEM
         try:
             text = router.chat(
                 [
-                    {"role": "system", "content": ADVISOR_SYSTEM},
+                    {"role": "system", "content": system_prompt},
                     *recent_history,
                     {"role": "user",   "content": body.message},
                 ],
                 temperature=0.55,
-                max_tokens=280,
+                max_tokens=400,
             )
         except Exception as exc:
             logger.error("Advisor LLM failed: %s", exc)
@@ -437,6 +477,8 @@ def chat(body: ChatRequest, http_response: Response):
         session["messages"].append({"role": "user",      "content": body.message})
         session["messages"].append({"role": "assistant", "content": text})
         session["messages"] = session["messages"][-_MAX_HISTORY:]
+        session["portfolio_built"] = True
+        session["post_build_count"] = 0   # reset limit on each new build
 
     if router.was_exhausted:
         http_response.headers["X-Overloaded"] = "true"
