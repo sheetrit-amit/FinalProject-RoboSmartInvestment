@@ -174,11 +174,20 @@ def get_price_history(
         ]
     )
     if limit:
+        limit = int(limit)
+        if limit < 1 or limit > 10_000:
+            raise ValueError(f"limit must be between 1 and 10000, got {limit}")
+        job_cfg = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ArrayQueryParameter("tickers", "STRING", tickers),
+                bigquery.ScalarQueryParameter("row_limit", "INT64", limit),
+            ]
+        )
         query = f"""
             SELECT date, ticker, close
             FROM `{_DAILY_PRICES}`
             WHERE ticker IN UNNEST(@tickers)
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) <= {limit}
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) <= @row_limit
             ORDER BY date ASC
         """
     else:

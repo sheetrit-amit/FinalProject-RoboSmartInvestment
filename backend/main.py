@@ -7,6 +7,7 @@ Two-mode /chat endpoint:
 """
 
 import logging
+import math
 import os
 import threading
 import uuid
@@ -16,7 +17,7 @@ from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 _here = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(dotenv_path=os.path.join(_here, ".env")) or \
@@ -44,12 +45,19 @@ logger = logging.getLogger("robosmart")
 # App
 # ---------------------------------------------------------------------------
 app = FastAPI(title="RoboSmartInvestment API", version="2.2.0")
+_ALLOWED_ORIGINS = [
+    "https://sheetrit-amit.github.io",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:5500",   # Live Server / VSCode
+    "null",                    # file:// double-click on Windows/macOS
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 # ---------------------------------------------------------------------------
@@ -107,20 +115,26 @@ def _cached_scan(risk: str, tickers: List[str]) -> List[Dict[str, Any]]:
 # Session store
 # ---------------------------------------------------------------------------
 _sessions: Dict[str, dict] = {}
+_sessions_lock = threading.Lock()
 _SESSION_TTL  = timedelta(hours=4)
 _MAX_HISTORY  = 16
 
 
+def _purge_expired_sessions(now: datetime) -> None:
+    """Remove sessions older than SESSION_TTL. Caller must hold _sessions_lock."""
+    for k in [k for k, v in _sessions.items() if now - v["ts"] > _SESSION_TTL]:
+        del _sessions[k]
+
+
 def _get_session(session_id: str) -> dict:
     now = datetime.utcnow()
-    for k in list(_sessions):
-        if now - _sessions[k]["ts"] > _SESSION_TTL:
-            del _sessions[k]
-    if session_id not in _sessions:
-        _sessions[session_id] = {"messages": [], "ts": now}
-    else:
-        _sessions[session_id]["ts"] = now
-    return _sessions[session_id]
+    with _sessions_lock:
+        _purge_expired_sessions(now)
+        if session_id not in _sessions:
+            _sessions[session_id] = {"messages": [], "ts": now}
+        else:
+            _sessions[session_id]["ts"] = now
+        return _sessions[session_id]
 
 
 # ---------------------------------------------------------------------------
@@ -226,13 +240,20 @@ def _renormalize(weights: List[Dict]) -> List[Dict]:
 # ---------------------------------------------------------------------------
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(max_length=2000)
     session_id: Optional[str] = None
     # Explicit params — set by UI when user clicks "Build My Portfolio"
-    explicit_budget:   Optional[float] = None
-    explicit_currency: Optional[str]   = None
-    explicit_risk:     Optional[str]   = None
-    explicit_top_k:    Optional[int]   = None
+    explicit_budget:   Optional[float] = Field(None, gt=0, le=1_000_000_000)
+    explicit_currency: Optional[str]   = Field(None, max_length=10)
+    explicit_risk:     Optional[str]   = Field(None, max_length=20)
+    explicit_top_k:    Optional[int]   = Field(None, ge=1, le=15)
+
+    @field_validator("explicit_budget")
+    @classmethod
+    def budget_must_be_finite(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and not math.isfinite(v):
+            raise ValueError("budget must be a finite number")
+        return v
 
 
 class ChatResponse(BaseModel):
@@ -257,7 +278,10 @@ def health():
 @app.get("/session/new")
 def new_session():
     sid = str(uuid.uuid4())
-    _sessions[sid] = {"messages": [], "ts": datetime.utcnow()}
+    now = datetime.utcnow()
+    with _sessions_lock:
+        _purge_expired_sessions(now)
+        _sessions[sid] = {"messages": [], "ts": now}
     logger.info("New session: %s", sid)
     return {"session_id": sid}
 
