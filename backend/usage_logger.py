@@ -30,6 +30,8 @@ USAGE_SCHEMA: List[bigquery.SchemaField] = [
     bigquery.SchemaField("event_id", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("event_time", "TIMESTAMP", mode="REQUIRED"),
     bigquery.SchemaField("session_id", "STRING", mode="NULLABLE"),
+    bigquery.SchemaField("user_message", "STRING", mode="NULLABLE"),
+    bigquery.SchemaField("response_text", "STRING", mode="NULLABLE"),
     bigquery.SchemaField("mode", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("status", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("error", "STRING", mode="NULLABLE"),
@@ -55,6 +57,7 @@ USAGE_SCHEMA: List[bigquery.SchemaField] = [
             bigquery.SchemaField("fundamental_score", "FLOAT64", mode="NULLABLE"),
             bigquery.SchemaField("technical_score", "FLOAT64", mode="NULLABLE"),
             bigquery.SchemaField("label", "STRING", mode="NULLABLE"),
+            bigquery.SchemaField("explanation", "STRING", mode="NULLABLE"),
         ],
     ),
 ]
