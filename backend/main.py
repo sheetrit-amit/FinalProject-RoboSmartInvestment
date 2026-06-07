@@ -10,8 +10,9 @@ import logging
 import math
 import os
 import threading
+import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
@@ -31,6 +32,7 @@ from bigquery_client import (
 from markowitz import run_markowitz
 from model_router import ModelRouter
 from technical_scanner import scan_tickers
+from usage_logger import log_usage_async
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -314,6 +316,52 @@ def new_session():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(body: ChatRequest, http_response: Response):
+    """Public endpoint: delegates to the handler and logs exactly one usage row
+    per request (success or error) without adding latency."""
+    start = time.perf_counter()
+    token_usage: Dict[str, Any] = {
+        "prompt_tokens": 0, "completion_tokens": 0,
+        "total_tokens": 0, "calls": 0, "model": None,
+    }
+    build_mode = (body.explicit_risk is not None and body.explicit_top_k is not None)
+    usage: Dict[str, Any] = {
+        "event_id":   str(uuid.uuid4()),
+        "event_time": datetime.now(timezone.utc).isoformat(),
+        "session_id": body.session_id,
+        "mode":       "build" if build_mode else "conversational",
+        "status":     "ok",
+        "error":      None,
+        "risk":       None, "budget": None, "currency": None, "top_k": None,
+        "stocks_delivered": None, "holdings": [],
+    }
+    try:
+        return _run_chat(body, http_response, build_mode, token_usage, usage)
+    except HTTPException as exc:
+        usage["status"] = "error"
+        usage["error"]  = str(exc.detail)
+        raise
+    except Exception as exc:
+        usage["status"] = "error"
+        usage["error"]  = str(exc)
+        raise
+    finally:
+        usage["latency_ms"]        = int((time.perf_counter() - start) * 1000)
+        usage["overloaded"]        = router.was_exhausted
+        usage["model_used"]        = token_usage["model"]
+        usage["prompt_tokens"]     = token_usage["prompt_tokens"]
+        usage["completion_tokens"] = token_usage["completion_tokens"]
+        usage["total_tokens"]      = token_usage["total_tokens"]
+        usage["llm_calls"]         = token_usage["calls"]
+        log_usage_async(_get_bq, usage)
+
+
+def _run_chat(
+    body: ChatRequest,
+    http_response: Response,
+    build_mode: bool,
+    token_usage: Dict[str, Any],
+    usage: Dict[str, Any],
+) -> ChatResponse:
     logger.info("→ /chat  session=%s  message=%r", body.session_id, body.message[:80])
     router.was_exhausted = False  # reset per-thread flag for this request
 
@@ -321,8 +369,6 @@ def chat(body: ChatRequest, http_response: Response):
         "messages": [], "portfolio_built": False, "post_build_count": 0
     }
     recent_history = session["messages"][-_MAX_HISTORY:]
-
-    build_mode = (body.explicit_risk is not None and body.explicit_top_k is not None)
 
     # ── CONVERSATIONAL MODE ──────────────────────────────────────────────────
     if not build_mode:
@@ -346,6 +392,7 @@ def chat(body: ChatRequest, http_response: Response):
                     ],
                     temperature=0.05,
                     max_tokens=120,
+                    usage_accumulator=token_usage,
                 )
             except Exception:
                 intent = {}
@@ -356,6 +403,10 @@ def chat(body: ChatRequest, http_response: Response):
                 "risk":     intent.get("risk") if intent.get("risk") in _VALID_RISKS else None,
                 "top_k":    int(intent["top_k"]) if intent.get("top_k") else None,
             }
+            usage["risk"]     = params_detected["risk"]
+            usage["budget"]   = params_detected["balance"]
+            usage["currency"] = params_detected["currency"]
+            usage["top_k"]    = params_detected["top_k"]
 
         # Step B: conversational reply — use discussion mode when portfolio already exists
         system_prompt = DISCUSSION_SYSTEM if portfolio_built else ADVISOR_SYSTEM
@@ -368,6 +419,7 @@ def chat(body: ChatRequest, http_response: Response):
                 ],
                 temperature=0.55,
                 max_tokens=400,
+                usage_accumulator=token_usage,
             )
         except Exception as exc:
             logger.error("Advisor LLM failed: %s", exc)
@@ -388,6 +440,11 @@ def chat(body: ChatRequest, http_response: Response):
     currency = body.explicit_currency or "USD"
     risk     = body.explicit_risk if body.explicit_risk in _VALID_RISKS else "Medium"
     top_k    = max(1, min(body.explicit_top_k or 5, _MAX_TOP_K))
+
+    usage["risk"]     = risk
+    usage["budget"]   = balance
+    usage["currency"] = currency
+    usage["top_k"]    = top_k
 
     # 1. Fetch tickers
     try:
@@ -439,6 +496,18 @@ def chat(body: ChatRequest, http_response: Response):
             "label":           _label(w["weight"], score),
         })
 
+    usage["stocks_delivered"] = len(weights)
+    usage["holdings"] = [
+        {
+            "ticker":            p["ticker"],
+            "weight":            p["weight"],
+            "fundamental_score": p["score"],
+            "technical_score":   p["technical_score"],
+            "label":             p["label"],
+        }
+        for p in portfolio
+    ]
+
     # 4. LLM synthesis
     markowitz_text = "\n".join(f"{w['ticker']}: {w['weight']*100:.2f}%" for w in weights)
     fund_text      = _build_fund_text(fundamentals)
@@ -464,6 +533,7 @@ def chat(body: ChatRequest, http_response: Response):
             ],
             temperature=0.4,
             max_tokens=900,
+            usage_accumulator=token_usage,
         )
     except Exception as exc:
         logger.error("Synthesis failed: %s", exc)

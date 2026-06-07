@@ -85,10 +85,16 @@ class ModelRouter:
         temperature: float = 0.35,
         max_tokens: int = 1200,
         retries: int = len(FREE_MODELS) + 2,
+        usage_accumulator: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Send a chat-completion request.  Returns the assistant text.
         Rotates models automatically on 429 responses.
+
+        If ``usage_accumulator`` (a plain dict owned by the caller) is supplied,
+        token usage and the answering model are folded into it on success. The
+        dict is per-request/caller-owned so this stays thread-safe even though
+        the router instance is shared across requests.
         """
         last_err: Optional[Exception] = None
 
@@ -122,6 +128,22 @@ class ModelRouter:
 
                 resp.raise_for_status()
                 data = resp.json()
+                if usage_accumulator is not None:
+                    u = data.get("usage") or {}
+                    usage_accumulator["prompt_tokens"] = (
+                        usage_accumulator.get("prompt_tokens", 0)
+                        + int(u.get("prompt_tokens") or 0)
+                    )
+                    usage_accumulator["completion_tokens"] = (
+                        usage_accumulator.get("completion_tokens", 0)
+                        + int(u.get("completion_tokens") or 0)
+                    )
+                    usage_accumulator["total_tokens"] = (
+                        usage_accumulator.get("total_tokens", 0)
+                        + int(u.get("total_tokens") or 0)
+                    )
+                    usage_accumulator["calls"] = usage_accumulator.get("calls", 0) + 1
+                    usage_accumulator["model"] = model
                 return data["choices"][0]["message"]["content"]
 
             except requests.RequestException as exc:
@@ -144,12 +166,18 @@ class ModelRouter:
         *,
         temperature: float = 0.1,
         max_tokens: int = 400,
+        usage_accumulator: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Like ``chat`` but parses the response as JSON.
         Strips markdown code fences if present.
         """
-        raw = self.chat(messages, temperature=temperature, max_tokens=max_tokens)
+        raw = self.chat(
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            usage_accumulator=usage_accumulator,
+        )
         raw = raw.strip()
         # Strip ``` or ```json fences
         if raw.startswith("```"):
