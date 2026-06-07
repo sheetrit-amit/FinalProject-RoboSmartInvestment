@@ -32,7 +32,7 @@ from bigquery_client import (
 from markowitz import run_markowitz
 from model_router import ModelRouter
 from technical_scanner import scan_tickers
-from usage_logger import log_usage_async
+from usage_logger import log_output_async, log_usage_async
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -331,6 +331,7 @@ def chat(body: ChatRequest, http_response: Response):
         "mode":       "build" if build_mode else "conversational",
         "status":     "ok",
         "error":      None,
+        "response_text": None,
         "risk":       None, "budget": None, "currency": None, "top_k": None,
         "stocks_delivered": None, "holdings": [],
     }
@@ -353,6 +354,15 @@ def chat(body: ChatRequest, http_response: Response):
         usage["total_tokens"]      = token_usage["total_tokens"]
         usage["llm_calls"]         = token_usage["calls"]
         log_usage_async(_get_bq, usage)
+        log_output_async(_get_bq, {
+            "event_id":           usage["event_id"],
+            "event_time":         usage["event_time"],
+            "response_text":      usage.get("response_text"),
+            "requested_risk":     usage["risk"],
+            "requested_budget":   usage["budget"],
+            "requested_currency": usage["currency"],
+            "requested_top_k":    usage["top_k"],
+        })
 
 
 def _run_chat(
@@ -378,6 +388,7 @@ def _run_chat(
         if portfolio_built:
             count = session.get("post_build_count", 0)
             if count >= _POST_BUILD_LIMIT:
+                usage["response_text"] = _POST_BUILD_LIMIT_MSG
                 return ChatResponse(text=_POST_BUILD_LIMIT_MSG, build_mode=False)
             session["post_build_count"] = count + 1
 
@@ -433,6 +444,7 @@ def _run_chat(
         if router.was_exhausted:
             http_response.headers["X-Overloaded"] = "true"
 
+        usage["response_text"] = text
         return ChatResponse(text=text, params_detected=params_detected, build_mode=False)
 
     # ── BUILD MODE (explicit params from button) ─────────────────────────────
@@ -553,6 +565,7 @@ def _run_chat(
     if router.was_exhausted:
         http_response.headers["X-Overloaded"] = "true"
 
+    usage["response_text"] = text
     logger.info("← /chat  build=True  positions=%d", len(portfolio))
     return ChatResponse(
         text=text,
