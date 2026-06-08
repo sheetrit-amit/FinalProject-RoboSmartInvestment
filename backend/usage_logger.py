@@ -30,6 +30,8 @@ USAGE_SCHEMA: List[bigquery.SchemaField] = [
     bigquery.SchemaField("event_id", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("event_time", "TIMESTAMP", mode="REQUIRED"),
     bigquery.SchemaField("session_id", "STRING", mode="NULLABLE"),
+    bigquery.SchemaField("user_message", "STRING", mode="NULLABLE"),
+    bigquery.SchemaField("response_text", "STRING", mode="NULLABLE"),
     bigquery.SchemaField("mode", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("status", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("error", "STRING", mode="NULLABLE"),
@@ -55,6 +57,7 @@ USAGE_SCHEMA: List[bigquery.SchemaField] = [
             bigquery.SchemaField("fundamental_score", "FLOAT64", mode="NULLABLE"),
             bigquery.SchemaField("technical_score", "FLOAT64", mode="NULLABLE"),
             bigquery.SchemaField("label", "STRING", mode="NULLABLE"),
+            bigquery.SchemaField("explanation", "STRING", mode="NULLABLE"),
         ],
     ),
 ]
@@ -88,6 +91,11 @@ def ensure_table(client: bigquery.Client, table: str = USAGE_TABLE) -> bool:
     Create ``table`` if it does not exist (idempotent; the create call runs at
     most once per process per table). Never raises — returns True when ready,
     False if BigQuery was unavailable.
+
+    Note: this only *creates* a missing table — it does not migrate the schema of
+    an existing one. When ``USAGE_SCHEMA`` / ``OUTPUTS_SCHEMA`` gain fields, run
+    ``scripts/migrate_usage_schema.py`` to reconcile the live tables; otherwise
+    streaming inserts of the new record shape are rejected with "no such field".
     """
     if table in _ready:
         return True

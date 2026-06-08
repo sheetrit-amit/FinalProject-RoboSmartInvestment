@@ -328,6 +328,7 @@ def chat(body: ChatRequest, http_response: Response):
         "event_id":   str(uuid.uuid4()),
         "event_time": datetime.now(timezone.utc).isoformat(),
         "session_id": body.session_id,
+        "user_message": body.message,
         "mode":       "build" if build_mode else "conversational",
         "status":     "ok",
         "error":      None,
@@ -516,6 +517,7 @@ def _run_chat(
             "fundamental_score": p["score"],
             "technical_score":   p["technical_score"],
             "label":             p["label"],
+            "explanation":       p["explanation"],
         }
         for p in portfolio
     ]
