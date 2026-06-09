@@ -323,7 +323,12 @@ def new_session():
     now = datetime.utcnow()
     with _sessions_lock:
         _purge_expired_sessions(now)
-        _sessions[sid] = {"messages": [], "ts": now}
+        _sessions[sid] = {
+            "messages": [],
+            "ts": now,
+            "portfolio_built": False,
+            "post_build_count": 0,
+        }
     logger.info("New session: %s", sid)
     return {"session_id": sid}
 

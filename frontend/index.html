@@ -2185,14 +2185,18 @@
       setTheme(root.dataset.theme === 'light' ? 'dark' : 'light');
     });
 
-    // ── Session ID (sessionStorage = per-tab, cleared on new tab/window) ──
-    let sessionId = sessionStorage.getItem('rsiv2_session');
-    if (!sessionId) {
-      fetch(`${BACKEND}/session/new`)
-        .then(r => r.json())
-        .then(d => { sessionId = d.session_id; sessionStorage.setItem('rsiv2_session', sessionId); })
-        .catch(() => { sessionId = null; });
-    }
+    // ── Session: always start a fresh server session on page load. ──
+    // A page refresh resets the visible conversation, so the backend session
+    // must reset too. Previously the id was cached in sessionStorage, which
+    // SURVIVES a reload — so a prior "portfolio already built" session was
+    // reused, forcing the chat into post-build discussion mode: it stopped
+    // extracting params / auto-filling the drawer and told the user to set
+    // them manually. A new session per load keeps the UI and server in sync.
+    let sessionId = null;
+    fetch(`${BACKEND}/session/new`)
+      .then(r => r.json())
+      .then(d => { sessionId = d.session_id; })
+      .catch(() => { sessionId = null; });
 
     // ── Params state ───────────────────────────────────────────────────────
     const params = { budget: null, currency: 'USD', topK: 5, risk: null };
