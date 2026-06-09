@@ -237,6 +237,7 @@ WRITING RULES:
 # ---------------------------------------------------------------------------
 _VALID_RISKS  = {"Low", "Med-Low", "Medium", "Med-High", "High"}
 _MAX_TOP_K    = 15
+_MIN_OPTIMIZER_TICKERS = 2  # Markowitz needs at least 2 names to optimise
 
 
 def _label(weight: float, score: Optional[float]) -> str:
@@ -261,6 +262,19 @@ def _renormalize(weights: List[Dict]) -> List[Dict]:
     if total <= 0:
         return weights
     return [{"ticker": w["ticker"], "weight": round(w["weight"] / total, 4)} for w in weights]
+
+
+def _equal_weight_fallback(tickers: List[str], top_k: int) -> List[Dict[str, Any]]:
+    """Equal-weight basket over up to *top_k* tickers.
+
+    Last-resort allocation so a build always returns a portfolio even when
+    Markowitz optimisation cannot run (e.g. too few usable price series).
+    """
+    picks = tickers[:max(1, top_k)]
+    if not picks:
+        return []
+    w = 1.0 / len(picks)
+    return [{"ticker": t, "weight": w} for t in picks]
 
 
 # ---------------------------------------------------------------------------
@@ -470,23 +484,40 @@ def _run_chat(
         raise HTTPException(status_code=404,
             detail=f"No tickers for risk level '{risk}'. Ensure the DB is seeded.")
 
-    # 1b. Technical pre-filter (yfinance-based scoring, cached 30 min per risk level)
+    # 1b. Technical pre-filter (yfinance-based scoring, cached 30 min per risk level).
+    #     The scan is a *preference* re-ranking, not a hard universe gate: a choppy
+    #     market or a flaky yfinance run can drop almost everything, and Markowitz
+    #     needs >= 2 names. So we keep the scan ordering but never let it starve the
+    #     optimiser — when too few names survive, top up from the full risk pool.
+    full_pool = list(tickers)
     tech_map: Dict[str, float] = {}
     tech_results = _cached_scan(risk, tickers)
     if tech_results:
-        # Use technically-screened ordering; fall back to full list if scan returned nothing
-        filtered_tickers = [r["ticker"] for r in tech_results]
+        survivors = [r["ticker"] for r in tech_results]
         tech_map = {r["ticker"]: r["technical_score"] for r in tech_results}
-        logger.info("Technical filter: %d → %d tickers", len(tickers), len(filtered_tickers))
-        tickers = filtered_tickers if filtered_tickers else tickers
+        if len(survivors) < _MIN_OPTIMIZER_TICKERS:
+            seen = set(survivors)
+            survivors += [t for t in full_pool if t not in seen]
+            logger.info(
+                "Technical filter too thin (%d survivor(s)) — topped up to %d tickers",
+                len(tech_results), len(survivors),
+            )
+        else:
+            logger.info("Technical filter: %d → %d tickers", len(full_pool), len(survivors))
+        tickers = survivors if survivors else full_pool
 
-    # 2. Markowitz + top-k
+    # 2. Markowitz + top-k. Never hard-fail the build: if optimisation cannot run
+    #    (too few usable price series, etc.) fall back to an equal-weight basket so
+    #    the user always receives a portfolio.
     try:
         weights = run_markowitz(tickers, _get_bq())
-        weights = _renormalize(weights[:top_k])
-        logger.info("Markowitz → %d positions", len(weights))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Portfolio optimisation failed: {exc}")
+        logger.warning("Markowitz failed (%s) — falling back to equal weight", exc)
+        weights = _equal_weight_fallback(tickers or full_pool, top_k)
+    if not weights:
+        weights = _equal_weight_fallback(full_pool, top_k)
+    weights = _renormalize(weights[:top_k])
+    logger.info("Portfolio → %d positions", len(weights))
 
     # 3. Fundamental scores
     opt_tickers = [w["ticker"] for w in weights]
