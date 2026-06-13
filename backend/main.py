@@ -529,7 +529,23 @@ def _run_chat(
         weights = _equal_weight_fallback(tickers or full_pool, fallback_k)
     if not weights:
         weights = _equal_weight_fallback(full_pool, fallback_k)
-    weights = _renormalize(weights[:top_k] if top_k is not None else weights)
+
+    # Slice to top_k, then pad if the optimizer concentrated into fewer positions.
+    # Padding uses a uniform baseline weight for the extras; renorm keeps totals correct.
+    if top_k is not None:
+        weights = weights[:top_k]
+        if len(weights) < top_k:
+            used = {w["ticker"] for w in weights}
+            extras = [t for t in tickers if t not in used][: top_k - len(weights)]
+            if extras:
+                baseline = 1.0 / top_k
+                for t in extras:
+                    weights.append({"ticker": t, "weight": baseline})
+                logger.info(
+                    "Padded %d extra positions to meet top_k=%d", len(extras), top_k
+                )
+
+    weights = _renormalize(weights)
     logger.info("Portfolio → %d positions (top_k=%s)", len(weights), top_k)
 
     # 3. Fundamental scores
