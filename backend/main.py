@@ -154,12 +154,12 @@ Your job is to have a warm, natural conversation to understand the user's invest
 and collect three pieces of information before a portfolio can be built:
   1. Budget — how much they want to invest (amount + currency)
   2. Risk level — Low | Med-Low | Medium | Med-High | High
-  3. Number of stocks — how many distinct positions (2–15; default suggestion: 5)
+  3. Number of stocks — how many distinct positions (2–30; default suggestion: 5)
 
 Rules:
 - Be concise (2–4 sentences). Do NOT write walls of text.
 - If any of the three params are still missing, ask about them naturally.
-- If the user requests more than 15 stocks, confirm you've capped it to 15 (the maximum) — do NOT ask them to re-specify.
+- If the user requests more than 30 stocks, confirm you've capped it to 30 (the maximum) — do NOT ask them to re-specify.
 - Once all three are confirmed, tell the user the parameters are set and invite them
   to click the "Build My Portfolio" button that appeared below the chat.
 - Do NOT invent or suggest stock names, weights, or portfolio contents — that is handled
@@ -237,7 +237,7 @@ WRITING RULES:
 # Helpers
 # ---------------------------------------------------------------------------
 _VALID_RISKS  = {"Low", "Med-Low", "Medium", "Med-High", "High"}
-_MAX_TOP_K    = 15
+_MAX_TOP_K    = 30
 _MIN_OPTIMIZER_TICKERS = 2  # Markowitz needs at least 2 names to optimise
 
 
@@ -289,7 +289,7 @@ class ChatRequest(BaseModel):
     explicit_budget:   Optional[float] = Field(None, gt=0, le=1_000_000_000)
     explicit_currency: Optional[str]   = Field(None, max_length=10)
     explicit_risk:     Optional[str]   = Field(None, max_length=20)
-    explicit_top_k:    Optional[int]   = Field(None, ge=1, le=15)
+    explicit_top_k:    Optional[int]   = Field(None, ge=1, le=30)
 
     @field_validator("explicit_budget")
     @classmethod

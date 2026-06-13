@@ -2323,7 +2323,7 @@
     // Stock count stepper
     setParam('topK', 5); // default — topK is always "set"
     topkDec.addEventListener('click', () => setParam('topK', Math.max(2,  params.topK - 1)));
-    topkInc.addEventListener('click', () => setParam('topK', Math.min(15, params.topK + 1)));
+    topkInc.addEventListener('click', () => setParam('topK', Math.min(30, params.topK + 1)));
 
     // Risk pills
     riskPills.forEach(btn => {
@@ -2441,7 +2441,7 @@
         noted.push(`${Number(detected.balance).toLocaleString()} ${cur}`);
       }
       if (detected.top_k) {
-        setParam('topK', Math.max(2, Math.min(15, detected.top_k)));
+        setParam('topK', Math.max(2, Math.min(30, detected.top_k)));
         noted.push(`${detected.top_k} stocks`);
       }
       if (detected.risk) {
