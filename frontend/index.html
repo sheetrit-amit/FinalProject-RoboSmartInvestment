@@ -1220,6 +1220,28 @@
       flex-shrink: 0;
     }
 
+    .chat-reset-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text-3);
+      font-family: 'Inter', sans-serif;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 180ms, border-color 180ms, color 180ms;
+      white-space: nowrap;
+    }
+    .chat-reset-btn:hover {
+      background: rgba(244,63,94,0.10);
+      border-color: rgba(244,63,94,0.4);
+      color: #f43f5e;
+    }
+
     /* ──────────────────────────────────────────────────────────────
        PARAMS DRAWER
     ────────────────────────────────────────────────────────────── */
@@ -1940,6 +1962,13 @@
         <div class="chat-topbar">
           <div class="status-dot" aria-hidden="true"></div>
           <span class="topbar-label">RoboAdvisor</span>
+          <button class="chat-reset-btn" id="chat-reset" type="button" aria-label="Reset conversation" title="Reset conversation">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <path d="M11 6.5a4.5 4.5 0 1 1-1.32-3.18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M11 1.5v2.8h-2.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Reset
+          </button>
           <button class="params-toggle-btn" id="params-toggle" aria-expanded="false" aria-controls="params-drawer">
             <span class="ptb-dot" id="ptb-dot"></span>
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
@@ -2195,6 +2224,9 @@
 
     // ── Params state ───────────────────────────────────────────────────────
     const params = { budget: null, currency: 'USD', topK: 5, risk: null };
+    // Build CTA is one-shot per session: hidden permanently once a portfolio
+    // is built. Reset (which starts a fresh session) clears this.
+    let portfolioBuilt = false;
 
     // ── DOM refs ───────────────────────────────────────────────────────────
     const feed      = document.getElementById('chat-feed');
@@ -2280,7 +2312,7 @@
 
     function updateCta() {
       const allSet = params.budget !== null && params.risk !== null;
-      buildCtaWrap.hidden = !allSet;
+      buildCtaWrap.hidden = !allSet || portfolioBuilt;
       if (allSet) {
         const budgetStr = params.budget ? `${params.currency} ${Number(params.budget).toLocaleString()}` : 'Any budget';
         ctaParamsSummary.textContent = `${budgetStr} · ${params.topK} stocks · ${params.risk} risk`;
@@ -2343,6 +2375,43 @@
         explicit_risk:     params.risk,
         explicit_top_k:    params.topK,
       });
+    });
+
+    // ── Reset conversation ─────────────────────────────────────────────────
+    const chatResetBtn = document.getElementById('chat-reset');
+    function resetChat() {
+      // Chat feed → initial greeting
+      feed.innerHTML = `
+          <div class="bubble bot">
+            <p>Hello! I'm your AI investment advisor. Let's build your perfect portfolio — tell me a bit about what you're looking for.</p>
+            <p class="hint">Try: "I want to start investing" or "I have $10,000 and I'm a cautious investor"</p>
+          </div>`;
+      // Portfolio viz → empty state
+      if (donutChart) { donutChart.destroy(); donutChart = null; }
+      vizData.classList.remove('active');
+      vizEmpty.style.display = '';
+      riskBadge.textContent = '—';
+      riskBadge.className = 'risk-badge default';
+      chartPos.textContent = '—';
+      stockRows.innerHTML = '';
+      // Params → defaults (re-enables the one-shot build CTA)
+      portfolioBuilt = false;
+      paramBudget.value = '';
+      paramCurrency.value = 'USD';
+      params.currency = 'USD';
+      setParam('budget', null);
+      setParam('risk', null);
+      setParam('topK', 5);
+      closeDrawer();
+      // Fresh backend session — drops the server's "portfolio already built" state
+      sessionId = null;
+      fetch(`${BACKEND}/session/new`).then(r => r.json()).then(d => { sessionId = d.session_id; }).catch(() => { sessionId = null; });
+      textarea.value = '';
+      textarea.style.height = 'auto';
+      textarea.focus();
+    }
+    chatResetBtn?.addEventListener('click', () => {
+      if (confirm('Reset the conversation? This clears the chat and your current portfolio.')) resetChat();
     });
 
     // ── Textarea auto-resize ───────────────────────────────────────────────
@@ -2610,7 +2679,7 @@
         hideTyping();
         hideOverloadBanner();
         addBubble(data.text, 'bot');
-        if (data.build_mode) updateViz(data);
+        if (data.build_mode) { updateViz(data); portfolioBuilt = true; updateCta(); }
         if (!data.build_mode) applyDetectedParams(data.params_detected);
 
       } catch (err) {
