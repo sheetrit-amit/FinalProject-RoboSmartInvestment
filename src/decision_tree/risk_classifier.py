@@ -21,6 +21,7 @@ Output:
 """
 
 import logging
+import os
 import pandas as pd
 import numpy as np
 import joblib
@@ -55,8 +56,14 @@ PREDICT_TABLES = {
     'income': f"{PROJECT_ID}.StockData.income_statements"
 }
 
-MODEL_FILE = 'stock_risk_model.pkl'
-OUTPUT_FILE = 'all_companies_risk_ratings.csv'
+_HERE = os.path.dirname(os.path.abspath(__file__))
+MODEL_FILE = os.path.join(_HERE, 'stock_risk_model.pkl')
+OUTPUT_FILE = os.path.join(_HERE, 'all_companies_risk_ratings.csv')
+
+# Live table the backend reads via get_tickers_by_risk (StockData, EU region)
+OUTPUT_TABLE = f"{PROJECT_ID}.StockData.companies_risk_ratings"
+OUTPUT_LOCATION = "EU"
+VALID_RISKS = ['Low', 'Med-Low', 'Medium', 'Med-High', 'High']
 
 FEATURES = [
     'debt_to_equity',
@@ -225,15 +232,16 @@ def run_full_prediction(client, vol_thresholds):
     logger.info("   Fetching data (Volatility + Reports)...")
 
     # Calculate volatility using SAFE_DIVIDE
+    # StockData.daily_prices.date is STRING (ISO) — cast before any DATE comparison.
     q_vol = f"""
         WITH Returns AS (
-            SELECT ticker, date,
+            SELECT ticker,
             SAFE_DIVIDE(
-                close - LAG(close) OVER(PARTITION BY ticker ORDER BY date),
-                LAG(close) OVER(PARTITION BY ticker ORDER BY date)
+                close - LAG(close) OVER(PARTITION BY ticker ORDER BY SAFE_CAST(date AS DATE)),
+                LAG(close) OVER(PARTITION BY ticker ORDER BY SAFE_CAST(date AS DATE))
             ) as daily_return
             FROM `{PREDICT_TABLES['prices']}`
-            WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR)
+            WHERE SAFE_CAST(date AS DATE) >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR)
         )
         SELECT ticker, STDDEV(daily_return) * SQRT(252) as annualized_volatility
         FROM Returns 
@@ -327,6 +335,29 @@ def run_full_prediction(client, vol_thresholds):
 
 
 # ==============================================================================
+# Part C: Publish to BigQuery
+# ==============================================================================
+
+def upload_to_bigquery(final_df):
+    """WRITE_TRUNCATE the classifications into companies_risk_ratings so the
+    backend's get_tickers_by_risk sees the full universe instead of the old seed."""
+    out = final_df[final_df['risk_level'].isin(VALID_RISKS)][['ticker', 'risk_level']]
+    client = bigquery.Client(project=PROJECT_ID, location=OUTPUT_LOCATION)
+    job = client.load_table_from_dataframe(
+        out, OUTPUT_TABLE,
+        job_config=bigquery.LoadJobConfig(
+            write_disposition="WRITE_TRUNCATE",
+            schema=[
+                bigquery.SchemaField("ticker", "STRING"),
+                bigquery.SchemaField("risk_level", "STRING"),
+            ],
+        ),
+    )
+    job.result()
+    logger.info("📤 Uploaded %d risk ratings → %s", len(out), OUTPUT_TABLE)
+
+
+# ==============================================================================
 # Main Execution
 # ==============================================================================
 
@@ -334,13 +365,17 @@ def main():
     """Main entry point for training and prediction."""
     # Initialize BigQuery client
     client = get_bigquery_client()
-    
+
     # Step 1: Training
     thresholds = train_the_model(client)
     logger.info(f"\n💡 Learned fallback thresholds: {thresholds}")
 
     # Step 2: Prediction on the entire market
-    run_full_prediction(client, thresholds)
+    final_df = run_full_prediction(client, thresholds)
+
+    # Step 3: Publish classifications to the live BigQuery table
+    if final_df is not None and not final_df.empty:
+        upload_to_bigquery(final_df)
 
 
 if __name__ == "__main__":
