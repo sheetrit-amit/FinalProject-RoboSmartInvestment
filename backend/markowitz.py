@@ -75,37 +75,50 @@ def markowitz_solver(
     top_k: Optional[int] = None,
 ) -> pd.Series:
     """
-    Solve for the portfolio weights on the efficient frontier that maximise
-    the Sharpe ratio subject to: sum(w)=1, 0 ≤ w_i ≤ max_w.
+    Maximise the Sharpe ratio subject to sum(w)=1.
 
-    When top_k is given, each position is capped at 1/min(top_k, n) so the
-    optimiser is forced to spread across at least top_k names.  The cap is
-    floored at 1/n to guarantee the sum-to-1 constraint stays feasible even
-    when fewer tickers than top_k are available.
+    top_k is a HARD constraint on the number of positions: pick the k = min(top_k, n)
+    names with the best individual Sharpe, floor every weight at 0.5/k so none drops
+    out (exact count) and cap at 2.5/k for diversification — always above 1/k, so the
+    optimiser keeps real freedom and never collapses to forced equal weight.
 
-    Returns a Series of non-trivial weights (> 0.1 %) sorted descending.
+    When top_k is None the count is unconstrained (0 ≤ w_i ≤ 1); only weights above
+    0.01 % are returned. Results are sorted descending.
     """
-    n = len(expected_returns)
-    mu = expected_returns.values
-    sigma = cov_matrix.values
+    mu = expected_returns
+    cov = cov_matrix
+    n = len(mu)
 
-    max_w = 1.0 / min(top_k, n) if top_k is not None else 1.0
+    if top_k is not None:
+        k = min(top_k, n)
+        if k < n:
+            vol = np.sqrt(np.maximum(np.diag(cov.values), 1e-12))
+            indiv = pd.Series((mu.values - risk_free_rate) / vol, index=mu.index)
+            keep = indiv.nlargest(k).index
+            mu, cov = mu.loc[keep], cov.loc[keep, keep]
+        bounds = [(0.5 / k, min(1.0, 2.5 / k))] * k
+    else:
+        k = n
+        bounds = [(0.0, 1.0)] * n
+
     result = minimize(
         _negative_sharpe,
-        np.full(n, 1 / n),
-        args=(mu, sigma, risk_free_rate),
+        np.full(k, 1.0 / k),
+        args=(mu.values, cov.values, risk_free_rate),
         method="SLSQP",
-        bounds=[(0.0, max_w)] * n,
+        bounds=bounds,
         constraints={"type": "eq", "fun": lambda w: w.sum() - 1},
-        tol=1e-8,
+        tol=1e-9,
         options={"maxiter": 1000},
     )
 
     if not result.success:
         raise RuntimeError(f"Optimisation failed: {result.message}")
 
-    weights = pd.Series(result.x, index=expected_returns.index)
-    return weights[weights > 1e-6].round(6).sort_values(ascending=False)
+    weights = pd.Series(result.x, index=mu.index)
+    if top_k is None:
+        weights = weights[weights > 1e-4]
+    return weights.round(6).sort_values(ascending=False)
 
 
 # ---------------------------------------------------------------------------

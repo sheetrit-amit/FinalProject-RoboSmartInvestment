@@ -225,9 +225,9 @@ WRITING RULES:
 - Focus on WHY each key position is included
 - STOCK COUNT: Always address the number of positions delivered vs what the user requested.
   If delivered == requested: briefly confirm (e.g. "Here are your X positions as requested.").
-  If delivered < requested: explain honestly that the Markowitz optimiser concentrated
-  the risk-adjusted allocation into fewer names — the omitted stocks did not improve
-  the Sharpe ratio — and ask if the user would like to adjust the count or risk level.
+  If delivered < requested: explain honestly that the investable universe for the chosen
+  risk level currently holds only that many names, so the portfolio uses all of them —
+  and invite the user to try a different risk level for a wider selection.
 - Close with one risk disclaimer sentence
 - Do NOT invent data not present in the inputs
 - If conversation history is present, personalise the response
@@ -530,21 +530,8 @@ def _run_chat(
     if not weights:
         weights = _equal_weight_fallback(full_pool, fallback_k)
 
-    # Slice to top_k, then pad if the optimizer concentrated into fewer positions.
-    # Padding uses a uniform baseline weight for the extras; renorm keeps totals correct.
-    if top_k is not None:
-        weights = weights[:top_k]
-        if len(weights) < top_k:
-            used = {w["ticker"] for w in weights}
-            extras = [t for t in tickers if t not in used][: top_k - len(weights)]
-            if extras:
-                baseline = 1.0 / top_k
-                for t in extras:
-                    weights.append({"ticker": t, "weight": baseline})
-                logger.info(
-                    "Padded %d extra positions to meet top_k=%d", len(extras), top_k
-                )
-
+    # markowitz_solver returns exactly min(top_k, n) optimised positions when top_k
+    # is set; the equal-weight fallback respects the same count. Just renormalise.
     weights = _renormalize(weights)
     logger.info("Portfolio → %d positions (top_k=%s)", len(weights), top_k)
 
