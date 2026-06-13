@@ -7,7 +7,7 @@ maximise the Sharpe ratio (mean-variance optimisation on the efficient frontier)
 
 import logging
 import warnings
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -83,12 +83,16 @@ def markowitz_solver(
     mu = expected_returns.values
     sigma = cov_matrix.values
 
+    # When top_k is given, cap each position at 1/top_k so the optimiser is
+    # forced to spread weight across at least top_k names (diversification mode).
+    # When top_k is None, use unconstrained bounds (legacy free-Markowitz).
+    max_w = 1.0 / top_k if top_k is not None else 1.0
     result = minimize(
         _negative_sharpe,
         np.full(n, 1 / n),
         args=(mu, sigma, risk_free_rate),
         method="SLSQP",
-        bounds=[(0.0, 1.0)] * n,
+        bounds=[(0.0, max_w)] * n,
         constraints={"type": "eq", "fun": lambda w: w.sum() - 1},
         tol=1e-8,
         options={"maxiter": 1000},
@@ -105,7 +109,7 @@ def markowitz_solver(
 # Pipeline
 # ---------------------------------------------------------------------------
 
-def run_markowitz(tickers: List[str], client: bigquery.Client) -> List[Dict]:
+def run_markowitz(tickers: List[str], client: bigquery.Client, top_k: Optional[int] = None) -> List[Dict]:
     """
     Full pipeline: load prices → clean → compute returns → optimise.
 

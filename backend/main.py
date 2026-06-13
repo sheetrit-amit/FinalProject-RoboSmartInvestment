@@ -342,7 +342,7 @@ def chat(body: ChatRequest, http_response: Response):
         "prompt_tokens": 0, "completion_tokens": 0,
         "total_tokens": 0, "calls": 0, "model": None,
     }
-    build_mode = (body.explicit_risk is not None and body.explicit_top_k is not None)
+    build_mode = body.explicit_risk is not None
     usage: Dict[str, Any] = {
         "event_id":   str(uuid.uuid4()),
         "event_time": datetime.now(timezone.utc).isoformat(),
@@ -471,7 +471,7 @@ def _run_chat(
     balance  = body.explicit_budget
     currency = body.explicit_currency or "USD"
     risk     = body.explicit_risk if body.explicit_risk in _VALID_RISKS else "Medium"
-    top_k    = max(1, min(body.explicit_top_k or 5, _MAX_TOP_K))
+    top_k    = max(1, min(body.explicit_top_k, _MAX_TOP_K)) if body.explicit_top_k is not None else None
 
     usage["risk"]     = risk
     usage["budget"]   = balance
@@ -514,15 +514,16 @@ def _run_chat(
     # 2. Markowitz + top-k. Never hard-fail the build: if optimisation cannot run
     #    (too few usable price series, etc.) fall back to an equal-weight basket so
     #    the user always receives a portfolio.
+    fallback_k = top_k or _MAX_TOP_K
     try:
-        weights = run_markowitz(tickers, _get_bq())
+        weights = run_markowitz(tickers, _get_bq(), top_k=top_k)
     except Exception as exc:
         logger.warning("Markowitz failed (%s) — falling back to equal weight", exc)
-        weights = _equal_weight_fallback(tickers or full_pool, top_k)
+        weights = _equal_weight_fallback(tickers or full_pool, fallback_k)
     if not weights:
-        weights = _equal_weight_fallback(full_pool, top_k)
-    weights = _renormalize(weights[:top_k])
-    logger.info("Portfolio → %d positions", len(weights))
+        weights = _equal_weight_fallback(full_pool, fallback_k)
+    weights = _renormalize(weights[:top_k] if top_k is not None else weights)
+    logger.info("Portfolio → %d positions (top_k=%s)", len(weights), top_k)
 
     # 3. Fundamental scores
     opt_tickers = [w["ticker"] for w in weights]
@@ -566,8 +567,9 @@ def _run_chat(
         for p in portfolio
     )
     delivered = len(weights)
+    requested_str = str(top_k) if top_k is not None else "auto (optimiser decides)"
     user_ctx = (
-        f"User profile — Risk: {risk}, Stocks requested: {top_k}, Stocks delivered: {delivered}"
+        f"User profile — Risk: {risk}, Stocks requested: {requested_str}, Stocks delivered: {delivered}"
         + (f", Amount: {balance:,.0f} {currency}" if balance else "")
         + f"\n\nMarkowitz weights:\n{markowitz_text}"
         + f"\n\nFundamental scores:\n{fund_text}"
@@ -589,7 +591,7 @@ def _run_chat(
         logger.error("Synthesis failed: %s", exc)
         top5 = ", ".join(f"**{w['ticker']}**" for w in weights[:5])
         text = (
-            f"Portfolio optimised for **{risk}** risk with {top_k} positions. "
+            f"Portfolio optimised for **{risk}** risk with {delivered} positions. "
             f"Top holdings: {top5}. Past performance does not guarantee future results."
         )
 
