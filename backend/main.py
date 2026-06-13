@@ -159,6 +159,7 @@ and collect three pieces of information before a portfolio can be built:
 Rules:
 - Be concise (2–4 sentences). Do NOT write walls of text.
 - If any of the three params are still missing, ask about them naturally.
+- If the user requests more than 15 stocks, confirm you've capped it to 15 (the maximum) — do NOT ask them to re-specify.
 - Once all three are confirmed, tell the user the parameters are set and invite them
   to click the "Build My Portfolio" button that appeared below the chat.
 - Do NOT invent or suggest stock names, weights, or portfolio contents — that is handled
@@ -428,11 +429,12 @@ def _run_chat(
             except Exception:
                 intent = {}
 
+            raw_top_k = intent.get("top_k")
             params_detected = {
                 "balance":  intent.get("balance"),
                 "currency": intent.get("currency"),
                 "risk":     intent.get("risk") if intent.get("risk") in _VALID_RISKS else None,
-                "top_k":    int(intent["top_k"]) if intent.get("top_k") else None,
+                "top_k":    min(int(raw_top_k), _MAX_TOP_K) if raw_top_k else None,
             }
             usage["risk"]     = params_detected["risk"]
             usage["budget"]   = params_detected["balance"]
