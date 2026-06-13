@@ -502,12 +502,17 @@ def _run_chat(
     if tech_results:
         survivors = [r["ticker"] for r in tech_results]
         tech_map = {r["ticker"]: r["technical_score"] for r in tech_results}
-        if len(survivors) < _MIN_OPTIMIZER_TICKERS:
+        # Top up when survivors are fewer than what the user requested (or the
+        # bare minimum for the optimiser). This prevents Markowitz from being
+        # handed only 2 tickers when top_k=15 — the scan preference order is
+        # kept; unscored tickers are appended at the back.
+        min_needed = max(top_k or 0, _MIN_OPTIMIZER_TICKERS)
+        if len(survivors) < min_needed:
             seen = set(survivors)
             survivors += [t for t in full_pool if t not in seen]
             logger.info(
-                "Technical filter too thin (%d survivor(s)) — topped up to %d tickers",
-                len(tech_results), len(survivors),
+                "Technical filter too thin (%d/%d needed) — topped up to %d tickers",
+                len(tech_results), min_needed, len(survivors),
             )
         else:
             logger.info("Technical filter: %d → %d tickers", len(full_pool), len(survivors))
