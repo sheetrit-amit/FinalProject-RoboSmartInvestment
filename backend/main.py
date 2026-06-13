@@ -180,9 +180,9 @@ Rules:
 - Do not promise future returns or give specific buy/sell advice.
 """
 
-_POST_BUILD_LIMIT = 5
+_POST_BUILD_LIMIT = 10
 _POST_BUILD_LIMIT_MSG = (
-    "You've reached the 5-message post-portfolio limit for this session. "
+    "You've reached the 10-message post-portfolio limit for this session. "
     "To continue exploring, please refresh the page to start a new session, "
     "or click \"Build My Portfolio\" again to generate a new portfolio."
 )

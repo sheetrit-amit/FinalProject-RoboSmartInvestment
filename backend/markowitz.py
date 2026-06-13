@@ -72,10 +72,16 @@ def markowitz_solver(
     expected_returns: pd.Series,
     cov_matrix: pd.DataFrame,
     risk_free_rate: float = RISK_FREE_RATE,
+    top_k: Optional[int] = None,
 ) -> pd.Series:
     """
     Solve for the portfolio weights on the efficient frontier that maximise
-    the Sharpe ratio subject to: sum(w)=1, 0 ≤ w_i ≤ 1.
+    the Sharpe ratio subject to: sum(w)=1, 0 ≤ w_i ≤ max_w.
+
+    When top_k is given, each position is capped at 1/min(top_k, n) so the
+    optimiser is forced to spread across at least top_k names.  The cap is
+    floored at 1/n to guarantee the sum-to-1 constraint stays feasible even
+    when fewer tickers than top_k are available.
 
     Returns a Series of non-trivial weights (> 0.1 %) sorted descending.
     """
@@ -83,10 +89,7 @@ def markowitz_solver(
     mu = expected_returns.values
     sigma = cov_matrix.values
 
-    # When top_k is given, cap each position at 1/top_k so the optimiser is
-    # forced to spread weight across at least top_k names (diversification mode).
-    # When top_k is None, use unconstrained bounds (legacy free-Markowitz).
-    max_w = 1.0 / top_k if top_k is not None else 1.0
+    max_w = 1.0 / min(top_k, n) if top_k is not None else 1.0
     result = minimize(
         _negative_sharpe,
         np.full(n, 1 / n),
@@ -157,8 +160,8 @@ def run_markowitz(tickers: List[str], client: bigquery.Client, top_k: Optional[i
     exp_ret.fillna(0, inplace=True)
     cov.fillna(0, inplace=True)
 
-    logger.info("Running Markowitz on %d assets …", len(exp_ret))
-    optimal = markowitz_solver(exp_ret, cov)
+    logger.info("Running Markowitz on %d assets (top_k=%s) …", len(exp_ret), top_k)
+    optimal = markowitz_solver(exp_ret, cov, top_k=top_k)
     logger.info("Optimal basket: %d positions", len(optimal))
 
     return [{"ticker": t, "weight": float(w)} for t, w in optimal.items()]

@@ -142,7 +142,7 @@ def _run_markowitz(tickers: List[str], bq: bigquery.Client, top_k: Optional[int]
     cov.fillna(0, inplace=True)
     n = len(exp_ret)
     mu, sigma = exp_ret.values, cov.values
-    max_w = 1.0 / top_k if top_k is not None else 1.0
+    max_w = 1.0 / min(top_k, n) if top_k is not None else 1.0
     result = minimize(
         lambda w: (0.0 if np.sqrt(max(w @ sigma @ w, 1e-10)) < 1e-6
                    else -(w @ mu - RISK_FREE_RATE) / np.sqrt(max(w @ sigma @ w, 1e-10))),
