@@ -530,8 +530,23 @@ def _run_chat(
     if not weights:
         weights = _equal_weight_fallback(full_pool, fallback_k)
 
-    # markowitz_solver returns exactly min(top_k, n) optimised positions when top_k
-    # is set; the equal-weight fallback respects the same count. Just renormalise.
+    # Hard count guarantee. markowitz returns min(top_k, usable price series); a thin
+    # or partial daily_prices snapshot can price fewer candidates than requested and
+    # silently deliver too few. Top up from the rest of the ranked risk pool so the
+    # delivered count always equals min(top_k, universe). A genuinely small universe
+    # (e.g. Med-High) caps below top_k — the synthesis reports that honestly.
+    if top_k is not None and len(weights) < top_k:
+        have  = {w["ticker"] for w in weights}
+        floor = min((w["weight"] for w in weights), default=1.0)
+        for t in dict.fromkeys(tickers + full_pool):
+            if len(weights) >= top_k:
+                break
+            if t not in have:
+                weights.append({"ticker": t, "weight": floor})
+                have.add(t)
+        logger.info("Count top-up → %d positions (requested %d)", len(weights), top_k)
+
+    # The equal-weight fallback respects the same count. Renormalise to sum 1.
     weights = _renormalize(weights)
     logger.info("Portfolio → %d positions (top_k=%s)", len(weights), top_k)
 
