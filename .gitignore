@@ -23,3 +23,6 @@ Thumbs.db
 .vscode/
 .idea/
 /graphify-out
+
+# Local BigQuery backups (can be large; never commit)
+/db_backup/
