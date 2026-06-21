@@ -1,16 +1,4 @@
-"""
-Usage logging to BigQuery for RoboSmartInvestment.
-
-Owns the telemetry tables, their schemas, and the async, fault-tolerant write
-path. Two tables, linked 1:1 by ``event_id``:
-
-  * ``usage_logs``    — one structured row per /chat request (params, portfolio,
-                        latency, token usage). No free text.
-  * ``usage_outputs`` — the raw model response text plus the requested risk /
-                        money / stock-count for that same request.
-
-Design: docs/superpowers/specs/2026-06-07-usage-logging-bigquery-design.md
-"""
+"""async fault-tolerant bigquery telemetry, two tables linked 1:1 by event_id"""
 
 import logging
 import threading
@@ -25,7 +13,6 @@ PROJECT_ID = "pro-visitor-429015-f5"
 USAGE_TABLE = f"{PROJECT_ID}.StockData.usage_logs"
 OUTPUTS_TABLE = f"{PROJECT_ID}.StockData.usage_outputs"
 
-# Structured per-request telemetry — keep in sync with the design doc.
 USAGE_SCHEMA: List[bigquery.SchemaField] = [
     bigquery.SchemaField("event_id", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("event_time", "TIMESTAMP", mode="REQUIRED"),
@@ -62,7 +49,6 @@ USAGE_SCHEMA: List[bigquery.SchemaField] = [
     ),
 ]
 
-# Raw model output text + the requested parameters, linked to usage_logs by event_id.
 OUTPUTS_SCHEMA: List[bigquery.SchemaField] = [
     bigquery.SchemaField("event_id", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("event_time", "TIMESTAMP", mode="NULLABLE"),
@@ -73,30 +59,21 @@ OUTPUTS_SCHEMA: List[bigquery.SchemaField] = [
     bigquery.SchemaField("requested_top_k", "INT64", mode="NULLABLE"),
 ]
 
-# Table id -> schema. Drives ensure_table / create-if-not-exists.
 _SCHEMAS: Dict[str, List[bigquery.SchemaField]] = {
     USAGE_TABLE: USAGE_SCHEMA,
     OUTPUTS_TABLE: OUTPUTS_SCHEMA,
 }
 
 _RETRIES = 3
-_BASE_BACKOFF = 0.5  # seconds; doubles each attempt (0.5s, 1s, 2s)
+_BASE_BACKOFF = 0.5
 
 _ready: Set[str] = set()
 _ready_lock = threading.Lock()
 
 
 def ensure_table(client: bigquery.Client, table: str = USAGE_TABLE) -> bool:
-    """
-    Create ``table`` if it does not exist (idempotent; the create call runs at
-    most once per process per table). Never raises — returns True when ready,
-    False if BigQuery was unavailable.
-
-    Note: this only *creates* a missing table — it does not migrate the schema of
-    an existing one. When ``USAGE_SCHEMA`` / ``OUTPUTS_SCHEMA`` gain fields, run
-    ``scripts/migrate_usage_schema.py`` to reconcile the live tables; otherwise
-    streaming inserts of the new record shape are rejected with "no such field".
-    """
+    # create-if-missing only, runs at most once per process per table, never raises;
+    # schema changes need scripts/migrate_usage_schema.py
     if table in _ready:
         return True
     with _ready_lock:
@@ -115,10 +92,7 @@ def ensure_table(client: bigquery.Client, table: str = USAGE_TABLE) -> bool:
 
 
 def _insert(client: bigquery.Client, table: str, record: Dict[str, Any]) -> bool:
-    """
-    Stream one record into ``table`` with retry + exponential backoff. Returns
-    True on success. Never raises — logs and drops the record on final failure.
-    """
+    # stream one record with retry + backoff, never raises, drops on final failure
     if not ensure_table(client, table):
         logger.error("%s unavailable — dropping record %s", table, record.get("event_id"))
         return False
@@ -149,12 +123,10 @@ def _insert(client: bigquery.Client, table: str, record: Dict[str, Any]) -> bool
 
 
 def log_usage(client: bigquery.Client, record: Dict[str, Any]) -> bool:
-    """Write a structured row to ``usage_logs``."""
     return _insert(client, USAGE_TABLE, record)
 
 
 def log_output(client: bigquery.Client, record: Dict[str, Any]) -> bool:
-    """Write a raw-output row to ``usage_outputs`` (linked by event_id)."""
     return _insert(client, OUTPUTS_TABLE, record)
 
 
@@ -163,11 +135,11 @@ def _log_async(
     table: str,
     record: Dict[str, Any],
 ) -> None:
-    """Fire-and-forget write in a daemon thread — zero added request latency."""
+    # fire-and-forget write in a daemon thread, zero added request latency
     def _worker() -> None:
         try:
             _insert(get_client(), table, record)
-        except Exception as exc:  # pragma: no cover - defensive
+        except Exception as exc:
             logger.error("telemetry worker failed for %s: %s", table, exc)
 
     threading.Thread(target=_worker, name="usage-logger", daemon=True).start()
@@ -176,12 +148,10 @@ def _log_async(
 def log_usage_async(
     get_client: Callable[[], bigquery.Client], record: Dict[str, Any]
 ) -> None:
-    """Async variant of :func:`log_usage`."""
     _log_async(get_client, USAGE_TABLE, record)
 
 
 def log_output_async(
     get_client: Callable[[], bigquery.Client], record: Dict[str, Any]
 ) -> None:
-    """Async variant of :func:`log_output`."""
     _log_async(get_client, OUTPUTS_TABLE, record)

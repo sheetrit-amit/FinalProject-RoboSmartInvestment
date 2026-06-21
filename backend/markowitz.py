@@ -1,9 +1,4 @@
-"""
-Markowitz Portfolio Optimizer
-
-Fetches price history from BigQuery and returns optimal weights that
-maximise the Sharpe ratio (mean-variance optimisation on the efficient frontier).
-"""
+"""markowitz optimiser, maximise sharpe on bigquery price history"""
 
 import logging
 import warnings
@@ -19,17 +14,12 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 logger = logging.getLogger(__name__)
 
 DAILY_PRICES_TABLE = "pro-visitor-429015-f5.StockData.daily_prices"
-RISK_FREE_RATE = 0.045          # ~current US T-bill yield
-MAX_TICKERS_FOR_OPTIMIZER = 150  # cap for performance
-BQ_LOCATION = "EU"              # StockData dataset lives in EU region
+RISK_FREE_RATE = 0.045
+MAX_TICKERS_FOR_OPTIMIZER = 150
+BQ_LOCATION = "EU"
 
-
-# ---------------------------------------------------------------------------
-# Data loading
-# ---------------------------------------------------------------------------
 
 def fetch_prices(tickers: List[str], client: bigquery.Client) -> pd.DataFrame:
-    """Load OHLCV close prices for *tickers* from BigQuery."""
     if not tickers:
         raise ValueError("Ticker list is empty.")
 
@@ -52,10 +42,6 @@ def fetch_prices(tickers: List[str], client: bigquery.Client) -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# Core optimiser
-# ---------------------------------------------------------------------------
-
 def _negative_sharpe(
     weights: np.ndarray,
     expected_returns: np.ndarray,
@@ -74,17 +60,8 @@ def markowitz_solver(
     risk_free_rate: float = RISK_FREE_RATE,
     top_k: Optional[int] = None,
 ) -> pd.Series:
-    """
-    Maximise the Sharpe ratio subject to sum(w)=1.
-
-    top_k is a HARD constraint on the number of positions: pick the k = min(top_k, n)
-    names with the best individual Sharpe, floor every weight at 0.5/k so none drops
-    out (exact count) and cap at 2.5/k for diversification — always above 1/k, so the
-    optimiser keeps real freedom and never collapses to forced equal weight.
-
-    When top_k is None the count is unconstrained (0 ≤ w_i ≤ 1); only weights above
-    0.01 % are returned. Results are sorted descending.
-    """
+    # top_k is a hard count: pick best individual-sharpe names, floor 0.5/k cap 2.5/k
+    # so none drops out yet the optimiser keeps freedom; top_k None means unconstrained
     mu = expected_returns
     cov = cov_matrix
     n = len(mu)
@@ -121,23 +98,12 @@ def markowitz_solver(
     return weights.round(6).sort_values(ascending=False)
 
 
-# ---------------------------------------------------------------------------
-# Pipeline
-# ---------------------------------------------------------------------------
-
 def run_markowitz(tickers: List[str], client: bigquery.Client, top_k: Optional[int] = None) -> List[Dict]:
-    """
-    Full pipeline: load prices → clean → compute returns → optimise.
-
-    Returns a list of {"ticker": str, "weight": float} dicts, sorted by
-    weight descending.  Only tickers with weight > 0.1 % are included.
-    """
-    # Keep at most MAX_TICKERS_FOR_OPTIMIZER to bound compute time
+    # load prices, clean, compute returns, optimise
     tickers = tickers[:MAX_TICKERS_FOR_OPTIMIZER]
 
     raw = fetch_prices(tickers, client)
 
-    # Pivot to wide format
     prices = (
         raw.pivot_table(index="date", columns="ticker", values="close", aggfunc="mean")
         .ffill()
@@ -150,7 +116,6 @@ def run_markowitz(tickers: List[str], client: bigquery.Client, top_k: Optional[i
             "need at least 60."
         )
 
-    # Daily returns
     returns = prices.pct_change()
     returns.replace([np.inf, -np.inf], np.nan, inplace=True)
     returns.dropna(axis=1, how="all", inplace=True)
@@ -159,14 +124,13 @@ def run_markowitz(tickers: List[str], client: bigquery.Client, top_k: Optional[i
     if returns.shape[1] < 2:
         raise ValueError("Fewer than 2 tickers have usable return data.")
 
-    # Pre-filter to top-N by individual Sharpe (keeps the problem manageable)
+    # pre-filter to top-N by individual sharpe to keep the problem manageable
     if returns.shape[1] > 80:
         sharpe = returns.mean() / returns.std().replace(0, np.nan)
         top = sharpe.nlargest(80).index
         returns = returns[top]
         logger.info("Pre-filtered to %d tickers by individual Sharpe", len(top))
 
-    # Annualised statistics
     exp_ret = returns.mean() * 252
     cov = returns.cov() * 252
 

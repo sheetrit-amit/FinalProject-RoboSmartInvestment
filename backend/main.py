@@ -1,10 +1,4 @@
-"""
-RoboSmartInvestment — FastAPI Backend v2.2
-==========================================
-Two-mode /chat endpoint:
-  CONVERSATIONAL mode (default): collect params through dialogue, no portfolio built.
-  BUILD mode (explicit params from UI button): run full Markowitz pipeline.
-"""
+"""fastapi backend, two-mode chat endpoint (conversational vs build)"""
 
 import logging
 import math
@@ -34,25 +28,19 @@ from model_router import ModelRouter
 from technical_scanner import scan_tickers
 from usage_logger import log_output_async, log_usage_async
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
 )
 logger = logging.getLogger("robosmart")
 
-# ---------------------------------------------------------------------------
-# App
-# ---------------------------------------------------------------------------
 app = FastAPI(title="RoboSmartInvestment API", version="2.2.0")
 _ALLOWED_ORIGINS = [
     "https://sheetrit-amit.github.io",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "http://localhost:5500",   # Live Server / VSCode
-    "null",                    # file:// double-click on Windows/macOS
+    "http://localhost:5500",
+    "null",
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -62,9 +50,6 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-# ---------------------------------------------------------------------------
-# Model router
-# ---------------------------------------------------------------------------
 _api_key = os.getenv("OPEN_ROUTER_API_KEY", "")
 if not _api_key:
     logger.warning("OPEN_ROUTER_API_KEY is not set — LLM calls will fail.")
@@ -73,9 +58,6 @@ else:
 
 router = ModelRouter(api_key=_api_key)
 
-# ---------------------------------------------------------------------------
-# BigQuery client singleton (one connection pool for the process lifetime)
-# ---------------------------------------------------------------------------
 _bq_client = None
 _bq_lock = threading.Lock()
 
@@ -89,10 +71,7 @@ def _get_bq() -> Any:
     return _bq_client
 
 
-# ---------------------------------------------------------------------------
-# Technical scan cache — TTL-keyed by risk level
-# Prevents O(N_users) redundant yfinance downloads for the same risk bucket.
-# ---------------------------------------------------------------------------
+# technical scan cache, ttl-keyed by risk to avoid redundant yfinance downloads
 _scan_cache: Dict[str, Any] = {}
 _scan_cache_lock = threading.Lock()
 _SCAN_TTL = timedelta(minutes=30)
@@ -102,20 +81,17 @@ def _cached_scan(risk: str, tickers: List[str]) -> List[Dict[str, Any]]:
     with _scan_cache_lock:
         if risk in _scan_cache:
             ts, cached = _scan_cache[risk]
-            if datetime.utcnow() - ts < _SCAN_TTL:
+            if datetime.now(timezone.utc) - ts < _SCAN_TTL:
                 logger.info("Technical scan cache HIT for risk=%s (%d tickers)", risk, len(cached))
                 return cached
 
     results = scan_tickers(tickers)
 
     with _scan_cache_lock:
-        _scan_cache[risk] = (datetime.utcnow(), results)
+        _scan_cache[risk] = (datetime.now(timezone.utc), results)
     return results
 
 
-# ---------------------------------------------------------------------------
-# Session store
-# ---------------------------------------------------------------------------
 _sessions: Dict[str, dict] = {}
 _sessions_lock = threading.Lock()
 _SESSION_TTL  = timedelta(hours=4)
@@ -123,13 +99,13 @@ _MAX_HISTORY  = 16
 
 
 def _purge_expired_sessions(now: datetime) -> None:
-    """Remove sessions older than SESSION_TTL. Caller must hold _sessions_lock."""
+    # caller must hold _sessions_lock
     for k in [k for k, v in _sessions.items() if now - v["ts"] > _SESSION_TTL]:
         del _sessions[k]
 
 
 def _get_session(session_id: str) -> dict:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     with _sessions_lock:
         _purge_expired_sessions(now)
         if session_id not in _sessions:
@@ -143,10 +119,6 @@ def _get_session(session_id: str) -> dict:
             _sessions[session_id]["ts"] = now
         return _sessions[session_id]
 
-
-# ---------------------------------------------------------------------------
-# Prompts
-# ---------------------------------------------------------------------------
 
 ADVISOR_SYSTEM = """You are a friendly AI investment advisor for RoboSmartInvest.
 
@@ -233,12 +205,9 @@ WRITING RULES:
 - If conversation history is present, personalise the response
 """
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 _VALID_RISKS  = {"Low", "Med-Low", "Medium", "Med-High", "High"}
 _MAX_TOP_K    = 50
-_MIN_OPTIMIZER_TICKERS = 2  # Markowitz needs at least 2 names to optimise
+_MIN_OPTIMIZER_TICKERS = 2  # markowitz needs at least 2 names
 
 
 def _label(weight: float, score: Optional[float]) -> str:
@@ -266,11 +235,7 @@ def _renormalize(weights: List[Dict]) -> List[Dict]:
 
 
 def _equal_weight_fallback(tickers: List[str], top_k: int) -> List[Dict[str, Any]]:
-    """Equal-weight basket over up to *top_k* tickers.
-
-    Last-resort allocation so a build always returns a portfolio even when
-    Markowitz optimisation cannot run (e.g. too few usable price series).
-    """
+    # last-resort allocation so a build always returns a portfolio
     picks = tickers[:max(1, top_k)]
     if not picks:
         return []
@@ -278,14 +243,9 @@ def _equal_weight_fallback(tickers: List[str], top_k: int) -> List[Dict[str, Any
     return [{"ticker": t, "weight": w} for t in picks]
 
 
-# ---------------------------------------------------------------------------
-# Pydantic models
-# ---------------------------------------------------------------------------
-
 class ChatRequest(BaseModel):
     message: str = Field(max_length=2000)
     session_id: Optional[str] = None
-    # Explicit params — set by UI when user clicks "Build My Portfolio"
     explicit_budget:   Optional[float] = Field(None, gt=0, le=1_000_000_000)
     explicit_currency: Optional[str]   = Field(None, max_length=10)
     explicit_risk:     Optional[str]   = Field(None, max_length=20)
@@ -306,12 +266,8 @@ class ChatResponse(BaseModel):
     balance:         Optional[float] = None
     currency:        Optional[str]   = None
     params_detected: Dict[str, Any]  = {}
-    build_mode:      bool = False   # tells frontend this was a real portfolio build
+    build_mode:      bool = False
 
-
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
 
 @app.get("/health")
 def health():
@@ -321,7 +277,7 @@ def health():
 @app.get("/session/new")
 def new_session():
     sid = str(uuid.uuid4())
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     with _sessions_lock:
         _purge_expired_sessions(now)
         _sessions[sid] = {
@@ -336,8 +292,7 @@ def new_session():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(body: ChatRequest, http_response: Response):
-    """Public endpoint: delegates to the handler and logs exactly one usage row
-    per request (success or error) without adding latency."""
+    # delegates to the handler and logs exactly one usage row per request
     start = time.perf_counter()
     token_usage: Dict[str, Any] = {
         "prompt_tokens": 0, "completion_tokens": 0,
@@ -394,18 +349,17 @@ def _run_chat(
     usage: Dict[str, Any],
 ) -> ChatResponse:
     logger.info("→ /chat  session=%s  message=%r", body.session_id, body.message[:80])
-    router.was_exhausted = False  # reset per-thread flag for this request
+    router.was_exhausted = False
 
     session       = _get_session(body.session_id) if body.session_id else {
         "messages": [], "portfolio_built": False, "post_build_count": 0
     }
     recent_history = session["messages"][-_MAX_HISTORY:]
 
-    # ── CONVERSATIONAL MODE ──────────────────────────────────────────────────
+    # conversational mode
     if not build_mode:
         portfolio_built = session.get("portfolio_built", False)
 
-        # Enforce post-build message limit
         if portfolio_built:
             count = session.get("post_build_count", 0)
             if count >= _POST_BUILD_LIMIT:
@@ -413,7 +367,7 @@ def _run_chat(
                 return ChatResponse(text=_POST_BUILD_LIMIT_MSG, build_mode=False)
             session["post_build_count"] = count + 1
 
-        # Step A: extract params only when no portfolio has been built yet
+        # extract params only before a portfolio exists
         params_detected: Dict[str, Any] = {}
         if not portfolio_built:
             try:
@@ -441,7 +395,6 @@ def _run_chat(
             usage["currency"] = params_detected["currency"]
             usage["top_k"]    = params_detected["top_k"]
 
-        # Step B: conversational reply — use discussion mode when portfolio already exists
         system_prompt = DISCUSSION_SYSTEM if portfolio_built else ADVISOR_SYSTEM
         try:
             text = router.chat(
@@ -469,7 +422,7 @@ def _run_chat(
         usage["response_text"] = text
         return ChatResponse(text=text, params_detected=params_detected, build_mode=False)
 
-    # ── BUILD MODE (explicit params from button) ─────────────────────────────
+    # build mode
     balance  = body.explicit_budget
     currency = body.explicit_currency or "USD"
     risk     = body.explicit_risk if body.explicit_risk in _VALID_RISKS else "Medium"
@@ -480,7 +433,6 @@ def _run_chat(
     usage["currency"] = currency
     usage["top_k"]    = top_k
 
-    # 1. Fetch tickers
     try:
         bq = _get_bq()
         tickers = get_tickers_by_risk(risk, bq)
@@ -491,21 +443,18 @@ def _run_chat(
         raise HTTPException(status_code=404,
             detail=f"No tickers for risk level '{risk}'. Ensure the DB is seeded.")
 
-    # 1b. Technical pre-filter (yfinance-based scoring, cached 30 min per risk level).
-    #     The scan is a *preference* re-ranking, not a hard universe gate: a choppy
-    #     market or a flaky yfinance run can drop almost everything, and Markowitz
-    #     needs >= 2 names. So we keep the scan ordering but never let it starve the
-    #     optimiser — when too few names survive, top up from the full risk pool.
+    # technical pre-filter is preference re-ranking, never a hard gate; a flaky
+    # yfinance run must not starve the optimiser, so top up from the full pool
     full_pool = list(tickers)
     tech_map: Dict[str, float] = {}
-    tech_results = _cached_scan(risk, tickers)
+    try:
+        tech_results = _cached_scan(risk, tickers)
+    except Exception as exc:
+        logger.warning("technical scan failed (%s) — using full risk pool", exc)
+        tech_results = []
     if tech_results:
         survivors = [r["ticker"] for r in tech_results]
         tech_map = {r["ticker"]: r["technical_score"] for r in tech_results}
-        # Top up when survivors are fewer than what the user requested (or the
-        # bare minimum for the optimiser). This prevents Markowitz from being
-        # handed only 2 tickers when top_k=15 — the scan preference order is
-        # kept; unscored tickers are appended at the back.
         min_needed = max(top_k or 0, _MIN_OPTIMIZER_TICKERS)
         if len(survivors) < min_needed:
             seen = set(survivors)
@@ -518,9 +467,7 @@ def _run_chat(
             logger.info("Technical filter: %d → %d tickers", len(full_pool), len(survivors))
         tickers = survivors if survivors else full_pool
 
-    # 2. Markowitz + top-k. Never hard-fail the build: if optimisation cannot run
-    #    (too few usable price series, etc.) fall back to an equal-weight basket so
-    #    the user always receives a portfolio.
+    # markowitz, never hard-fail: fall back to equal weight so a build always returns
     fallback_k = top_k or _MAX_TOP_K
     try:
         weights = run_markowitz(tickers, _get_bq(), top_k=top_k)
@@ -530,11 +477,7 @@ def _run_chat(
     if not weights:
         weights = _equal_weight_fallback(full_pool, fallback_k)
 
-    # Hard count guarantee. markowitz returns min(top_k, usable price series); a thin
-    # or partial daily_prices snapshot can price fewer candidates than requested and
-    # silently deliver too few. Top up from the rest of the ranked risk pool so the
-    # delivered count always equals min(top_k, universe). A genuinely small universe
-    # (e.g. Med-High) caps below top_k — the synthesis reports that honestly.
+    # hard count guarantee: top up from the ranked pool to min(top_k, universe)
     if top_k is not None and len(weights) < top_k:
         have  = {w["ticker"] for w in weights}
         floor = min((w["weight"] for w in weights), default=1.0)
@@ -546,11 +489,9 @@ def _run_chat(
                 have.add(t)
         logger.info("Count top-up → %d positions (requested %d)", len(weights), top_k)
 
-    # The equal-weight fallback respects the same count. Renormalise to sum 1.
     weights = _renormalize(weights)
     logger.info("Portfolio → %d positions (top_k=%s)", len(weights), top_k)
 
-    # 3. Fundamental scores
     opt_tickers = [w["ticker"] for w in weights]
     try:
         fundamentals = get_fundamental_scores(opt_tickers, _get_bq())
@@ -584,7 +525,6 @@ def _run_chat(
         for p in portfolio
     ]
 
-    # 4. LLM synthesis
     markowitz_text = "\n".join(f"{w['ticker']}: {w['weight']*100:.2f}%" for w in weights)
     fund_text      = _build_fund_text(fundamentals)
     tech_text = "\n".join(
@@ -625,7 +565,7 @@ def _run_chat(
         session["messages"].append({"role": "assistant", "content": text})
         session["messages"] = session["messages"][-_MAX_HISTORY:]
         session["portfolio_built"] = True
-        session["post_build_count"] = 0   # reset limit on each new build
+        session["post_build_count"] = 0
 
     if router.was_exhausted:
         http_response.headers["X-Overloaded"] = "true"
@@ -643,9 +583,6 @@ def _run_chat(
     )
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

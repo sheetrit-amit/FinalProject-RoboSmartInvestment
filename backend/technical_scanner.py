@@ -1,16 +1,8 @@
-"""
-Technical Stock Scanner
-
-Scores each ticker 0-100 using momentum and trend indicators (daily data via yfinance).
-Used as a pre-filter before Markowitz: only tickers with score >= MIN_SCORE are passed
-to the optimizer, ensuring candidates have both fundamental (BQ) AND technical support.
-
-Benchmark: ^GSPC (S&P 500).
-"""
+"""technical scanner, scores tickers 0-100 on momentum/trend via yfinance"""
 
 import logging
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -19,15 +11,11 @@ warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
 
 BENCHMARK       = "^GSPC"
-PERIOD          = "6mo"    # ~126 trading days; fast enough for Render, enough for EMA-50
-MIN_SCORE       = 50       # tickers below this are dropped before Markowitz
-LOOKBACK_RS     = 60       # trading days for relative-strength (~3 months, fits in 6mo window)
-LOOKBACK_DIV    = 10       # bars for divergence detection
+PERIOD          = "6mo"
+MIN_SCORE       = 50
+LOOKBACK_RS     = 60
+LOOKBACK_DIV    = 10
 
-
-# ---------------------------------------------------------------------------
-# Indicator helpers
-# ---------------------------------------------------------------------------
 
 def _ema(series: pd.Series, n: int) -> pd.Series:
     return series.ewm(span=n, adjust=False).mean()
@@ -86,15 +74,8 @@ def _bull_candle(open_: pd.Series, high: pd.Series, low: pd.Series, close: pd.Se
     return (lower_w > body * 2) & (low < open_.combine(close, min))
 
 
-# ---------------------------------------------------------------------------
-# Per-ticker scoring
-# ---------------------------------------------------------------------------
-
 def _score_ticker(df: pd.DataFrame, bench_returns: pd.Series) -> float:
-    """
-    Return a 0-100 technical score for a single ticker's OHLCV DataFrame.
-    Returns NaN if data is insufficient.
-    """
+    # 0-100 score for one ticker, nan when data insufficient
     if len(df) < 60:
         return float("nan")
 
@@ -114,22 +95,20 @@ def _score_ticker(df: pd.DataFrame, bench_returns: pd.Series) -> float:
     rvol      = volume / avg_vol.replace(0, np.nan)
     pivot_low = low.rolling(5).min()
 
-    # Relative strength vs S&P 500
     stock_ret = close.pct_change(LOOKBACK_RS)
     aligned   = bench_returns.reindex(stock_ret.index).ffill()
     rs_value  = stock_ret - aligned
 
-    last = -1   # index for final row
+    last = -1
 
     score = 0.0
-    if close.iloc[last] > ema50.iloc[last]:                                   score += 15  # price above 50-EMA (uptrend)
-    if ema20.iloc[last]  > ema50.iloc[last]:                                  score += 15  # short-term above long-term
-    if _detect_div(low, rsi):                                                 score += 10  # RSI divergence
-    if _detect_div(low, macd_h):                                              score += 10  # MACD divergence
-    if macd_h.iloc[last] > 0 and macd_h.iloc[last] > macd_h.iloc[-2]:        score += 10  # MACD momentum
-    if rs_value.iloc[last] > 0:                                               score += 10  # relative strength
-    if cmf.iloc[last] > 0:                                                    score +=  5  # money flow
-    # VCP squeeze: BB bands inside 1.5× ATR band
+    if close.iloc[last] > ema50.iloc[last]:                                   score += 15
+    if ema20.iloc[last]  > ema50.iloc[last]:                                  score += 15
+    if _detect_div(low, rsi):                                                 score += 10
+    if _detect_div(low, macd_h):                                              score += 10
+    if macd_h.iloc[last] > 0 and macd_h.iloc[last] > macd_h.iloc[-2]:        score += 10
+    if rs_value.iloc[last] > 0:                                               score += 10
+    if cmf.iloc[last] > 0:                                                    score +=  5
     vcp = (bb_lo.iloc[last] > ema20.iloc[last] - atr20.iloc[last] * 1.5) and \
           (bb_hi.iloc[last] < ema20.iloc[last] + atr20.iloc[last] * 1.5)
     if vcp:                                                                   score +=  5
@@ -145,29 +124,19 @@ def _score_ticker(df: pd.DataFrame, bench_returns: pd.Series) -> float:
     return float(score)
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
 def scan_tickers(
     tickers: List[str],
     min_score: int = MIN_SCORE,
     benchmark: str = BENCHMARK,
     period: str = PERIOD,
 ) -> List[Dict[str, Any]]:
-    """
-    Download OHLCV data for *tickers* via yfinance, score each one, and return
-    only those at or above *min_score*, sorted by score descending.
-
-    Each result dict: {"ticker": str, "technical_score": float}
-    """
+    # download ohlcv, score each, return those >= min_score sorted desc
     try:
         import yfinance as yf
     except ImportError:
         logger.warning("yfinance not installed — skipping technical scan, returning all tickers unscored")
         return [{"ticker": t, "technical_score": None} for t in tickers]
 
-    # Download benchmark returns once
     try:
         bench_raw = yf.download(benchmark, period=period, interval="1d", progress=False, auto_adjust=True)
         if isinstance(bench_raw.columns, pd.MultiIndex):

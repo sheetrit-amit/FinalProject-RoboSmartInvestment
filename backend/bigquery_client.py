@@ -1,11 +1,8 @@
-"""
-BigQuery helper layer for RoboSmartInvestment.
-All project-specific table names live here.
-"""
+"""bigquery helper layer, all table names live here"""
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -13,27 +10,13 @@ from google.oauth2 import service_account
 logger = logging.getLogger(__name__)
 
 PROJECT_ID = "pro-visitor-429015-f5"
-BQ_LOCATION = "EU"   # StockData dataset lives in EU region
+BQ_LOCATION = "EU"
 
-# Table references
-_TICKER_GRADES   = f"{PROJECT_ID}.StockData.ticker_grades"
-_RISK_RATINGS    = f"{PROJECT_ID}.StockData.companies_risk_ratings"
-_DAILY_PRICES    = f"{PROJECT_ID}.StockData.daily_prices"
+_TICKER_GRADES = f"{PROJECT_ID}.StockData.ticker_grades"
 
-
-# ---------------------------------------------------------------------------
-# Client factory
-# ---------------------------------------------------------------------------
 
 def get_bigquery_client() -> bigquery.Client:
-    """
-    Build a BigQuery client.
-
-    Resolution order:
-    1. GCP_SERVICE_ACCOUNT_JSON env-var (inline JSON string)
-    2. GOOGLE_APPLICATION_CREDENTIALS env-var (path to a service-account JSON file)
-    3. Application Default Credentials (gcloud auth application-default login)
-    """
+    # resolution order: inline json env, sa file env, application default creds
     import json as _json
     sa_json = os.getenv("GCP_SERVICE_ACCOUNT_JSON")
     if sa_json:
@@ -43,7 +26,7 @@ def get_bigquery_client() -> bigquery.Client:
             logger.info("BigQuery: using inline GCP_SERVICE_ACCOUNT_JSON")
             return bigquery.Client(credentials=creds, project=PROJECT_ID, location=BQ_LOCATION)
         except Exception:
-            pass  # malformed (truncated by dotenv multiline) — fall through
+            pass
 
     sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if sa_path:
@@ -55,15 +38,8 @@ def get_bigquery_client() -> bigquery.Client:
     return bigquery.Client(project=PROJECT_ID, location=BQ_LOCATION)
 
 
-# ---------------------------------------------------------------------------
-# Queries
-# ---------------------------------------------------------------------------
-
 def get_tickers_by_risk(risk_level: str, client: bigquery.Client) -> List[str]:
-    """
-    Return all tickers that have a grade AND match the requested risk level.
-    Ordered by ticker for reproducibility.
-    """
+    # graded tickers matching the requested risk level, ordered for reproducibility
     query = """
         SELECT tg.ticker
         FROM `pro-visitor-429015-f5.StockData.ticker_grades`  AS tg
@@ -88,10 +64,7 @@ def get_fundamental_scores(
     tickers: List[str],
     client: bigquery.Client,
 ) -> List[Dict[str, Any]]:
-    """
-    Fetch ticker_grades (mark + explanation) for the given tickers.
-    Returns an empty list when tickers is empty.
-    """
+    # mark + explanation for the given tickers, empty list when none
     if not tickers:
         return []
 
@@ -114,88 +87,3 @@ def get_fundamental_scores(
         }
         for row in rows
     ]
-
-
-def get_bq_context(client: bigquery.Client) -> dict:
-    """
-    Probe BigQuery for live schema context: valid risk levels with counts
-    and price date range.  Injected into the LLM extraction prompt so the
-    model knows exactly which parameter values exist in the DB.
-    """
-    risk_query = f"""
-        SELECT risk_level, COUNT(*) AS cnt
-        FROM `{_RISK_RATINGS}`
-        GROUP BY risk_level
-        ORDER BY cnt DESC
-    """
-    range_query = f"""
-        SELECT MIN(date) AS earliest, MAX(date) AS latest,
-               COUNT(DISTINCT ticker) AS ticker_count
-        FROM `{_DAILY_PRICES}`
-    """
-    try:
-        risk_rows  = list(client.query(risk_query).result())
-        range_rows = list(client.query(range_query).result())
-    except Exception as exc:
-        logger.warning("get_bq_context failed: %s", exc)
-        return {}
-
-    risk_counts = {r.risk_level: r.cnt for r in risk_rows}
-    valid_levels = list(risk_counts.keys())
-
-    rr = range_rows[0] if range_rows else None
-    price_range = (
-        {"earliest": str(rr.earliest), "latest": str(rr.latest), "tickers": rr.ticker_count}
-        if rr else {}
-    )
-
-    return {
-        "risk_levels":  valid_levels,
-        "risk_counts":  risk_counts,
-        "price_range":  price_range,
-    }
-
-
-def get_price_history(
-    tickers: List[str],
-    client: bigquery.Client,
-    limit: Optional[int] = None,
-) -> List[Dict[str, Any]]:
-    """
-    Fetch close-price history for a list of tickers (ordered by date asc).
-    Optionally cap at *limit* most recent rows per ticker.
-    """
-    if not tickers:
-        return []
-
-    job_cfg = bigquery.QueryJobConfig(
-        query_parameters=[
-            bigquery.ArrayQueryParameter("tickers", "STRING", tickers)
-        ]
-    )
-    if limit:
-        limit = int(limit)
-        if limit < 1 or limit > 10_000:
-            raise ValueError(f"limit must be between 1 and 10000, got {limit}")
-        job_cfg = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ArrayQueryParameter("tickers", "STRING", tickers),
-                bigquery.ScalarQueryParameter("row_limit", "INT64", limit),
-            ]
-        )
-        query = f"""
-            SELECT date, ticker, close
-            FROM `{_DAILY_PRICES}`
-            WHERE ticker IN UNNEST(@tickers)
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) <= @row_limit
-            ORDER BY date ASC
-        """
-    else:
-        query = f"""
-            SELECT date, ticker, close
-            FROM `{_DAILY_PRICES}`
-            WHERE ticker IN UNNEST(@tickers)
-            ORDER BY date ASC
-        """
-    rows = client.query(query, job_config=job_cfg).result()
-    return [{"date": str(row.date), "ticker": row.ticker, "close": row.close} for row in rows]
