@@ -2138,13 +2138,13 @@
   <!-- ─── FOOTER ───────────────────────────────────────────────── -->
   <footer class="footer">
     <p>
-      RoboSmartInvest &copy; 2025 — Ben-Gurion University of the Negev.<br>
+      RoboSmartInvest &copy; 2025–2026 — Ben-Gurion University of the Negev.<br>
       For educational purposes only. Not financial advice.
     </p>
     <div class="footer-links">
       <a href="#how-it-works">How it works</a>
       <a href="#chat">Portfolio Builder</a>
-      <a href="https://github.com" rel="noopener noreferrer" target="_blank">GitHub</a>
+      <a href="https://github.com/sheetrit-amit/FinalProject-RoboSmartInvestment" rel="noopener noreferrer" target="_blank">GitHub</a>
     </div>
   </footer>
 
@@ -2324,6 +2324,9 @@
 
     function setParam(key, value) {
       params[key] = value;
+      // a manual param change after a build signals intent to rebuild — re-enable
+      // the one-shot CTA so the advisor's "update params and click Build again" holds
+      portfolioBuilt = false;
       if (key === 'budget') {
         syncParamCheck(checkBudget, value !== null && value > 0);
       }
@@ -2349,6 +2352,7 @@
     });
     paramCurrency.addEventListener('change', () => {
       params.currency = paramCurrency.value;
+      portfolioBuilt = false;
       updateCta();
     });
 
